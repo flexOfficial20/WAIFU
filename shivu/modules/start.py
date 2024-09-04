@@ -50,9 +50,9 @@ async def start(update: Update, context: CallbackContext) -> None:
     else:
         photo_url = random.choice(PHOTO_URL)
         keyboard = [
-            [InlineKeyboardButton("➕ 𝖠𝖽𝖽 𝖬𝖾 I𝗇 𝖸𝗈𝗎𝗋 𝖦𝗋𝗈𝗎𝗉 ➕", url=f'http://t.me/nudeXcatcherbot?startgroup=new')],
-            [InlineKeyboardButton("𝖲𝗎𝗉𝗉𝗈𝗋𝗍 🍁", url=f'https://t.me/blade_x_support'),
-             InlineKeyboardButton("𝖴𝗉𝖽𝖺𝗍𝖾𝗌 📈", url=f'https://t.me/blade_x_community')],
+            [InlineKeyboardButton("➕ 𝖠𝖽𝖽 𝖬𝖾 I𝗇 𝖸𝗈𝗎𝗋 𝖦𝗋𝗈𝗎𝗉 ➕", url=f'http://t.me/capture_Waifu_Bot?startgroup=new')],
+            [InlineKeyboardButton("𝖲𝗎𝗉𝗉𝗈𝗋𝗍 🍁", url=f'https://t.me/capture_your_WH_gc'),
+             InlineKeyboardButton("𝖴𝗉𝖽𝖺𝗍𝖾𝗌 📈", url=f'https://t.me/luffy_bots')],
             [InlineKeyboardButton("𝖧𝖾𝗅𝗉 ⚙️", callback_data='help')]
         ]
 
@@ -69,7 +69,7 @@ async def button(update: Update, context: CallbackContext) -> None:
         help_text = """
     ***Help Section:***
 
-***/guess: To Guess character (only works in group)***
+***/capture: To capture character (only works in group)***
 ***/fav: Add Your fav***
 ***/trade : To trade Characters***
 ***/gift: Give any Character from Your Collection to another user.. (only works in groups)***
@@ -92,16 +92,16 @@ async def button(update: Update, context: CallbackContext) -> None:
 ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━⧫
 ┠ ➻  I ᴡɪʟʟ Sᴜᴍᴍᴏɴ Wᴀɪғᴜ Cʜᴀʀᴀᴄᴛᴇʀs Iɴ
 ┃        ʏᴏᴜʀ Gʀᴏᴜᴘ Cʜᴀᴛ. 
-┠ ➻  Yᴏᴜ ᴄᴀɴ sᴇᴀʟ ᴛʜᴇᴍ ʙʏ /catch ᴄᴏᴍᴍᴀɴᴅ 
+┠ ➻  Yᴏᴜ ᴄᴀɴ sᴇᴀʟ ᴛʜᴇᴍ ʙʏ /capture ᴄᴏᴍᴍᴀɴᴅ 
 ┃         ᴀɴᴅ ᴀᴅᴅ ᴛᴏ ʏᴏᴜʀ ʜᴀʀᴇᴍ.
 ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━⧫
   Tᴀᴘ ᴏɴ "Hᴇʟᴘ" ғᴏʀ ᴍᴏʀᴇ ᴄᴏᴍᴍᴀɴᴅs.***
         """
 
         keyboard = [
-            [InlineKeyboardButton("➕ 𝖠𝖽𝖽 𝖬𝖾 I𝗇 𝖸𝗈𝗎𝗋 𝖦𝗋𝗈𝗎𝗉 ➕", url=f'http://t.me/nudeXcatcherbot?startgroup=new')],
-            [InlineKeyboardButton("𝖲𝗎𝗉𝗉𝗈𝗋𝗍 🍁", url=f'https://t.me/blade_x_support'),
-             InlineKeyboardButton("𝖴𝗉𝖽𝖺𝗍𝖾𝗌 📈", url=f'https://t.me/blade_x_community')],
+            [InlineKeyboardButton("➕ 𝖠𝖽𝖽 𝖬𝖾 I𝗇 𝖸𝗈𝗎𝗋 𝖦𝗋𝗈𝗎𝗉 ➕", url=f'http://t.me/capture_Waifu_Bot?startgroup=new')],
+            [InlineKeyboardButton("𝖲𝗎𝗉𝗉𝗈𝗋𝗍 🍁", url=f'https://t.me/capture_your_WH_gc'),
+             InlineKeyboardButton("𝖴𝗉𝖽𝖺𝗍𝖾𝗌 📈", url=f'https://t.me/luffy_bots')],
             [InlineKeyboardButton("𝖧𝖾𝗅𝗉 ⚙️", callback_data='help')]
         ]
         reply_markup = InlineKeyboardMarkup(keyboard)
