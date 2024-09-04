@@ -1,12 +1,18 @@
 import urllib.request
 from pymongo import ReturnDocument
-import os
 from telegram import Update
 from telegram.ext import CommandHandler, CallbackContext
-from PIL import Image, ImageDraw, ImageFont
 from shivu import application, sudo_users, collection, db, CHARA_CHANNEL_ID, SUPPORT_CHAT
-from gridfs import GridFS
-from io import BytesIO
+
+# Rarity Map
+rarity_map = {
+    1: "🟢 Common",
+    2: "🔵 Medium",
+    3: "🔴 Rare",
+    4: "🟡 Legendary",
+    5: "🔮 Limited Edition",
+    6: "💠 Cosmic"
+}
 
 WRONG_FORMAT_TEXT = """Wrong ❌ format...  eg. /upload Img_url muzan-kibutsuji Demon-slayer 3
 
@@ -14,9 +20,7 @@ img_url character-name anime-name rarity-number
 
 use rarity number accordingly rarity Map
 
-rarity_map = 1 (⚪️ Common), 2 (🟣 Rare) , 3 (🟡 Legendary), 4 (🟢 Medium),  5 (🔮 Limited Edition), 6 (🎐 Celestial), 7 (💮 Special Edition)"""
-
-
+rarity_map = 1 (🟢 Common), 2 (🔵 Medium), 3 (🔴 Rare), 4 (🟡 Legendary), 5 (🔮 Limited Edition), 6 (💠 Cosmic)"""
 
 async def get_next_sequence_number(sequence_name):
     sequence_collection = db.sequences
@@ -29,7 +33,6 @@ async def get_next_sequence_number(sequence_name):
         await sequence_collection.insert_one({'_id': sequence_name, 'sequence_value': 0})
         return 0
     return sequence_document['sequence_value']
-
 
 async def upload(update: Update, context: CallbackContext) -> None:
     if str(update.effective_user.id) not in sudo_users:
@@ -51,11 +54,10 @@ async def upload(update: Update, context: CallbackContext) -> None:
             await update.message.reply_text('Invalid URL.')
             return
 
-        rarity_map = {1: "⚪ Common", 2: "🟣 Rare", 3: "🟡 Legendary", 4: "🟢 medium", 5: "🔮 Limited Edition", 6: "🎐 Celestial", 7: "💮 Special Edition", 7: "💮 Special Edition"}
         try:
             rarity = rarity_map[int(args[3])]
         except KeyError:
-            await update.message.reply_text('Invalid rarity. Please use 1, 2, 3, 4, 5, 6')
+            await update.message.reply_text('Invalid rarity. Please use 1, 2, 3, 4, 5, or 6.')
             return
 
         id = str(await get_next_sequence_number('character_id')).zfill(2)
@@ -85,8 +87,6 @@ async def upload(update: Update, context: CallbackContext) -> None:
     except Exception as e:
         await update.message.reply_text(f'Character Upload Unsuccessful. Error: {str(e)}\nIf you think this is a source error, forward to: {SUPPORT_CHAT}')
 
-
-
 async def delete(update: Update, context: CallbackContext) -> None:
     if str(update.effective_user.id) not in sudo_users:
         await update.message.reply_text('Ask my Owner to use this Command...')
@@ -98,17 +98,14 @@ async def delete(update: Update, context: CallbackContext) -> None:
             await update.message.reply_text('Incorrect format... Please use: /delete ID')
             return
 
-        
         character = await collection.find_one_and_delete({'id': args[0]})
         if character:
-            
             await context.bot.delete_message(chat_id=CHARA_CHANNEL_ID, message_id=character['message_id'])
             await update.message.reply_text('DONE')
         else:
             await update.message.reply_text('Deleted Successfully from db, but character not found In Channel')
     except Exception as e:
         await update.message.reply_text(f'{str(e)}')
-
 
 async def update(update: Update, context: CallbackContext) -> None:
     if str(update.effective_user.id) not in sudo_users:
@@ -137,18 +134,16 @@ async def update(update: Update, context: CallbackContext) -> None:
         if args[1] in ['name', 'anime']:
             new_value = args[2].replace('-', ' ').title()
         elif args[1] == 'rarity':
-            rarity_map = {1: "⚪ Common", 2: "🟣 Rare", 3: "🟡 Legendary", 4: "🟢 medium", 5: "🔮 Limited Edition", 6: "🎐 Celestial"}
             try:
                 new_value = rarity_map[int(args[2])]
             except KeyError:
-                await update.message.reply_text('Invalid rarity. Please use 1, 2, 3, 4, 5, 6, 7, or 8.')
+                await update.message.reply_text('Invalid rarity. Please use 1, 2, 3, 4, 5, or 6.')
                 return
         else:
             new_value = args[2]
 
         await collection.find_one_and_update({'id': args[0]}, {'$set': {args[1]: new_value}})
 
-        
         if args[1] == 'img_url':
             await context.bot.delete_message(chat_id=CHARA_CHANNEL_ID, message_id=character['message_id'])
             message = await context.bot.send_photo(
@@ -160,7 +155,6 @@ async def update(update: Update, context: CallbackContext) -> None:
             character['message_id'] = message.message_id
             await collection.find_one_and_update({'id': args[0]}, {'$set': {'message_id': message.message_id}})
         else:
-            
             await context.bot.edit_message_caption(
                 chat_id=CHARA_CHANNEL_ID,
                 message_id=character['message_id'],
@@ -172,7 +166,6 @@ async def update(update: Update, context: CallbackContext) -> None:
     except Exception as e:
         await update.message.reply_text(f'I guess did not added bot in channel.. or character uploaded Long time ago.. Or character not exits.. orr Wrong id')
 
-        
 async def check(update: Update, context: CallbackContext) -> None:    
      try:
         args = context.args
@@ -181,7 +174,7 @@ async def check(update: Update, context: CallbackContext) -> None:
             return
             
         character_id = context.args[0]
-         # Get character name from the command arguments
+        # Get character name from the command arguments
         
         character = await collection.find_one({'id': args[0]}) 
             
@@ -201,15 +194,12 @@ async def check(update: Update, context: CallbackContext) -> None:
      except Exception as e:
         await update.message.reply_text(f"Error occurred: {e}")
 
-
 async def check_total_characters(update: Update, context: CallbackContext) -> None:
     try:
         total_characters = await collection.count_documents({})
-        
         await update.message.reply_text(f"Total number of characters: {total_characters}")
     except Exception as e:
         await update.message.reply_text(f"Error occurred: {e}")
-
 
 async def add_sudo_user(update: Update, context: CallbackContext) -> None:
     if int(update.effective_user.id) == 5932230962:  # Replace OWNER_ID with the ID of the bot owner
@@ -227,15 +217,8 @@ async def add_sudo_user(update: Update, context: CallbackContext) -> None:
 
 ADD_SUDO_USER_HANDLER = CommandHandler('add_sudo_user', add_sudo_user, block=False)
 application.add_handler(ADD_SUDO_USER_HANDLER)
-       
-        
 
-ADD_SUDO_USER_HANDLER = CommandHandler('addsudo', add_sudo_user, block=False)
-application.add_handler(ADD_SUDO_USER_HANDLER)
-
-        
 application.add_handler(CommandHandler("total", check_total_characters))
-
 
 UPLOAD_HANDLER = CommandHandler('uploads', upload, block=upload)
 application.add_handler(UPLOAD_HANDLER)
