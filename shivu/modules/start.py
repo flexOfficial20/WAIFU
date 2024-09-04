@@ -32,7 +32,7 @@ async def start(update: Update, context: CallbackContext) -> None:
 ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━⧫
 ┠ ➻  I ᴡɪʟʟ Sᴜᴍᴍᴏɴ Wᴀɪғᴜ Cʜᴀʀᴀᴄᴛᴇʀs Iɴ
 ┃        ʏᴏᴜʀ Gʀᴏᴜᴘ Cʜᴀᴛ. 
-┠ ➻  Yᴏᴜ ᴄᴀɴ sᴇᴀʟ ᴛʜᴇᴍ ʙʏ /catch ᴄᴏᴍᴍᴀɴᴅ 
+┠ ➻  Yᴏᴜ ᴄᴀɴ sᴇᴀʟ ᴛʜᴇᴍ ʙʏ /capture ᴄᴏᴍᴍᴀɴᴅ 
 ┃         ᴀɴᴅ ᴀᴅᴅ ᴛᴏ ʏᴏᴜʀ ʜᴀʀᴇᴍ.
 ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━⧫
   Tᴀᴘ ᴏɴ "Hᴇʟᴘ" ғᴏʀ ᴍᴏʀᴇ ᴄᴏᴍᴍᴀɴᴅs."""
@@ -114,7 +114,7 @@ async def waifu_help(update: Update, context: CallbackContext) -> None:
     help_text = """
     ***Waifu Help Section:***
 
-***/guess: To Guess character (only works in group)***
+***/capture: To capture character (only works in group)***
 ***/fav: Add Your fav***
 ***/trade : To trade Characters***
 ***/gift: Give any Character from Your Collection to another user.. (only works in groups)***
