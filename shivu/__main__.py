@@ -34,18 +34,26 @@ def escape_markdown(text):
     escape_chars = r'\*_`\\~>#+-=|{}.!'
     return re.sub(r'([%s])' % re.escape(escape_chars), r'\\\1', text)
 
-# Define the sequence of rarities
+# Rarity spawn sequence with spawn frequencies:
 rarity_sequence = (
-    ['Common'] * 5 + 
-    ['Medium'] * 5 + 
-    ['Rare'] * 2 + 
-    ['Legendary'] * 1
+    ['🟢 Common'] * 10 + 
+    ['🔵 Medium'] * 9 + 
+    ['🔴 Rare'] * 5 + 
+    ['🟡 Legendary'] * 1
 )
 
 # Convert to an itertools cycle so it will keep repeating
 rarity_cycle = itertools.cycle(rarity_sequence)
 
+# Custom counters for Limited Edition and Cosmic rarities
+limited_edition_counter = 0
+cosmic_counter = 0
+limited_edition_spawned = False
+cosmic_spawned = False
+
 async def message_counter(update: Update, context: CallbackContext) -> None:
+    global limited_edition_counter, cosmic_counter, limited_edition_spawned, cosmic_spawned
+    
     chat_id = str(update.effective_chat.id)
     user_id = update.effective_user.id
 
@@ -78,17 +86,44 @@ async def message_counter(update: Update, context: CallbackContext) -> None:
             message_counts[chat_id] = 1
 
         if message_counts[chat_id] % message_frequency == 0:
-            await send_image(update, context)
-            message_counts[chat_id] = 0
+            # Reset flags for new spawn cycle
+            limited_edition_spawned = False
+            cosmic_spawned = False
 
-async def send_image(update: Update, context: CallbackContext) -> None:
+            # Check if it's time to spawn a Limited Edition character
+            if limited_edition_counter >= 20000 and not limited_edition_spawned:
+                if random.randint(1, 25) == 1:
+                    await send_image(update, context, rarity='🔮 Limited Edition')
+                    limited_edition_counter = 0
+                    limited_edition_spawned = True
+                else:
+                    limited_edition_counter += 1
+            # Check if it's time to spawn a Cosmic character
+            elif cosmic_counter >= 10000 and not cosmic_spawned:
+                if random.randint(1, 200) == 1:
+                    await send_image(update, context, rarity='💠 Cosmic')
+                    cosmic_counter = 0
+                    cosmic_spawned = True
+                else:
+                    cosmic_counter += 1
+            # Otherwise, spawn based on the rarity cycle
+            else:
+                await send_image(update, context)
+                message_counts[chat_id] = 0
+
+        # Increment counters
+        limited_edition_counter += 1
+        cosmic_counter += 1
+
+async def send_image(update: Update, context: CallbackContext, rarity=None) -> None:
     chat_id = update.effective_chat.id
 
-    # Select the next rarity from the cycle
-    next_rarity = next(rarity_cycle)
+    if rarity is None:
+        # Select the next rarity from the cycle
+        rarity = next(rarity_cycle)
 
     # Fetch all characters of that rarity
-    characters_of_rarity = list(await collection.find({'rarity': next_rarity}).to_list(length=None))
+    characters_of_rarity = list(await collection.find({'rarity': rarity}).to_list(length=None))
 
     if chat_id not in sent_characters:
         sent_characters[chat_id] = []
