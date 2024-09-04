@@ -6,9 +6,8 @@ import asyncio
 import itertools
 from html import escape
 
-from telegram import InlineKeyboardButton, InlineKeyboardMarkup
-from telegram import Update
-from telegram.ext import CommandHandler, CallbackContext, MessageHandler, filters
+from telegram import InlineKeyboardButton, InlineKeyboardMarkup, InputTextMessageContent, InlineQueryResultArticle, Update
+from telegram.ext import CommandHandler, CallbackContext, MessageHandler, filters, InlineQueryHandler, CallbackQueryHandler
 
 from shivu import collection, top_global_groups_collection, group_user_totals_collection, user_collection, user_totals_collection, shivuu
 from shivu import application, SUPPORT_CHAT, UPDATE_CHAT, db, LOGGER
@@ -263,9 +262,69 @@ async def fav(update: Update, context: CallbackContext) -> None:
     await user_collection.update_one({'id': user_id}, {'$set': {'favorite': character_id}})
     await update.message.reply_text(f'Character {character_id} has been set as your favorite.')
 
+async def inline_query(update: Update, context: CallbackContext) -> None:
+    query = update.inline_query.query
+    results = []
+
+    if not query:
+        return
+
+    # Search for characters by name or ID
+    characters = await collection.find({
+        '$or': [
+            {'name': {'$regex': query, '$options': 'i'}},
+            {'id': query}
+        ]
+    }).to_list(length=10)
+
+    for character in characters:
+        character_id = character['id']
+        keyboard = [
+            [InlineKeyboardButton(f"Grabber Stats", callback_data=f"grabber_stats_{character_id}")]
+        ]
+
+        results.append(
+            InlineQueryResultArticle(
+                id=character_id,
+                title=character['name'],
+                input_message_content=InputTextMessageContent(
+                    f"""☘️ Name: {character['name']}
+                    🟡 Rarity: {character['rarity']}
+                    ⚜️ Anime: {character['anime']}
+                    🆔: {character_id}"""
+                ),
+                reply_markup=InlineKeyboardMarkup(keyboard)
+            )
+        )
+
+    await update.inline_query.answer(results, cache_time=1)
+
+async def callback_query(update: Update, context: CallbackContext) -> None:
+    query = update.callback_query
+    callback_data = query.data
+
+    if callback_data.startswith("grabber_stats_"):
+        character_id = callback_data.split("_")[2]
+        character = await collection.find_one({'id': character_id})
+        if not character:
+            await query.answer("Character not found.")
+            return
+
+        grabber_stats = await group_user_totals_collection.find({'character_id': character_id}).sort([('count', -1)]).to_list(length=10)
+        top_grabbers = '\n'.join(f"➥ <a href='tg://user?id={stat['user_id']}'>{stat['username']}</a> 🍅 x{stat['count']}" for stat in grabber_stats)
+        global_grabs = await collection.count_documents({'id': character_id})
+
+        message = f"""🌎 Grabbed Globally: {global_grabs} times
+        🎖️ Top 10 Grabbers Of This Waifu In This Chat
+        {top_grabbers}"""
+
+        await query.edit_message_text(message, parse_mode='HTML')
+
 application.add_handler(CommandHandler("guess", guess))
 application.add_handler(CommandHandler("fav", fav))
 application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, message_counter))
+application.add_handler(InlineQueryHandler(inline_query))
+application.add_handler(CallbackQueryHandler(callback_query))
 
 async def main() -> None:
     await application.start()
