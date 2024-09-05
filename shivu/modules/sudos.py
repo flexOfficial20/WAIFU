@@ -1,7 +1,7 @@
 from telegram import Update
 from telegram.ext import CommandHandler, CallbackContext
-from shivu import application, sudo_users, db, OWNER_ID
-
+from shivu import application, sudo_users, db
+OWNER_ID = 7453770651
 # MongoDB collection for storing sudo users
 sudo_collection = db['sudos']
 
