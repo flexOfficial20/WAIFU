@@ -12,7 +12,7 @@ from telegram.ext import Application, CommandHandler, MessageHandler, filters, I
 from shivu import collection, top_global_groups_collection, group_user_totals_collection, user_collection, user_totals_collection, shivuu
 from shivu import application, SUPPORT_CHAT, UPDATE_CHAT, db, LOGGER
 from shivu.modules import ALL_MODULES
-from shivu.config import TOKEN
+
 # Initialize locks and counters for managing state
 locks = {}
 message_counters = {}
@@ -227,21 +227,16 @@ async def callback_query_handler(update: Update, context: CallbackContext):
             )
     await query.answer()
 
-def main():
-    """Start the bot."""
-    TOKEN = config.TOKEN
-    # Load modules dynamically
-    for module_name in ALL_MODULES:
-        importlib.import_module("shivu.modules." + module_name)
+def main() -> None:
+    """Run bot."""
 
-    # Register handlers
-    app.add_handler(CommandHandler("guess", guess))
-    app.add_handler(MessageHandler(filters.TEXT & (~filters.COMMAND), message_counter))
-    app.add_handler(InlineQueryHandler(inline_query_handler))
-    app.add_handler(CallbackQueryHandler(callback_query_handler))
+    application.add_handler(CommandHandler(["guess", "protecc", "collect", "grab", "hunt"], guess, block=False))
+    application.add_handler(CommandHandler("fav", fav, block=False))
+    application.add_handler(MessageHandler(filters.ALL, message_counter, block=False))
 
-    # Start the bot
-    app.run_polling()
-
-if __name__ == '__main__':
+    application.run_polling(drop_pending_updates=True)
+    
+if __name__ == "__main__":
+    shivuu.start()
+    LOGGER.info("Bot started")
     main()
