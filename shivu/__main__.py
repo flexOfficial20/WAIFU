@@ -226,7 +226,36 @@ async def callback_query_handler(update: Update, context: CallbackContext):
                 f"Character: {character['name']}\nRarity: {character['rarity']}"
             )
     await query.answer()
+async def fav(update: Update, context: CallbackContext) -> None:
+    user_id = update.effective_user.id
 
+    
+    if not context.args:
+        await update.message.reply_text('Please provide Character id...')
+        return
+
+    character_id = context.args[0]
+
+    
+    user = await user_collection.find_one({'id': user_id})
+    if not user:
+        await update.message.reply_text('You have not Guessed any characters yet....')
+        return
+
+
+    character = next((c for c in user['characters'] if c['id'] == character_id), None)
+    if not character:
+        await update.message.reply_text('This Character is Not In your collection')
+        return
+
+    
+    user['favorites'] = [character_id]
+
+    
+    await user_collection.update_one({'id': user_id}, {'$set': {'favorites': user['favorites']}})
+
+    await update.message.reply_text(f'Character {character["name"]} has been added to your favorite...')
+    
 def main() -> None:
     """Run bot."""
 
