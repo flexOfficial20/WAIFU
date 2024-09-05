@@ -229,7 +229,7 @@ async def callback_query_handler(update: Update, context: CallbackContext):
 
 def main():
     """Start the bot."""
-    TOKEN = Config.TOKEN
+    TOKEN = config.TOKEN
     # Load modules dynamically
     for module_name in ALL_MODULES:
         importlib.import_module("shivu.modules." + module_name)
