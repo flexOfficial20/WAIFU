@@ -1,31 +1,40 @@
-from telegraph import upload_file
-from pyrogram import filters
-from shivu import shivuu
-from pyrogram.types import InputMediaPhoto
+from pyrogram import Client, filters
+import requests
+from shivu import application as app
+# Initialize your Pyrogram client
 
+IMGBB_API_KEY = '5a5dadd79df17356e7250672f8b1b00b'
 
-@shivuu.on_message(filters.command(["teli" , "telegraph"]))
-def ul(_, message):
+# Function to upload file to ImgBB
+def upload_to_imgbb(file_path):
+    try:
+        with open(file_path, 'rb') as f:
+            response = requests.post(
+                "https://api.imgbb.com/1/upload",
+                data={'key': IMGBB_API_KEY},
+                files={'image': f}
+            )
+        response_data = response.json()
+        if response_data['success']:
+            return response_data['data']['url']
+        return None
+    except Exception as e:
+        print(f"Error uploading to ImgBB: {str(e)}")
+        return None
+
+# Command handler for /imgbb
+@app.on_message(filters.command(["imgbb"]))
+def imgbb_upload(client, message):
     reply = message.reply_to_message
-    if reply.media:
-        i = message.reply("𝐌𝙰𝙺𝙴 𝐀 𝐋𝙸𝙽𝙺...")
-        path = reply.download()
-        fk = upload_file(path)
-        for x in fk:
-            url = "https://telegra.ph" + x
+    if reply and reply.media:
+        i = message.reply("𝐔ᴘʟᴏᴀᴅɪɴɢ 𝙔ᴏᴜʀ 𝐈ᴍᴀɢᴇ...")
+        file_path = reply.download()
+        imgbb_url = upload_to_imgbb(file_path)
+        if imgbb_url:
+            i.edit(f'Yᴏᴜʀ ɪᴍᴀɢᴇ sᴜᴄᴄᴇssғᴜʟʟʏ ᴜᴘʟᴏᴀᴅᴇᴅ! Hᴇʀᴇ\'s ᴛʜᴇ ᴜʀʟ:\n{imgbb_url}')
+        else:
+            i.edit('Failed to upload image to ImgBB.')
+    else:
+        message.reply("Please reply to an image with this command.")
 
-        i.edit(f'Yᴏᴜʀ ʟɪɴᴋ sᴜᴄᴄᴇssғᴜʟ Gᴇɴ `{url}`')
-
-########____________________________________________________________######
-
-@shivuu.on_message(filters.command(["graph" , "grf"]))
-def ul(_, message):
-    reply = message.reply_to_message
-    if reply.media:
-        i = message.reply("𝐌𝙰𝙺𝙴 𝐀 𝐋𝙸𝙽𝙺...")
-        path = reply.download()
-        fk = upload_file(path)
-        for x in fk:
-            url = "https://graph.org" + x
-
-        i.edit(f'Yᴏᴜʀ ʟɪɴᴋ sᴜᴄᴄᴇssғᴜʟ Gᴇɴ `{url}`')
+# Start the bot
