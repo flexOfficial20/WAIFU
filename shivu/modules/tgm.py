@@ -1,4 +1,4 @@
-/eval import requests
+import requests
 from telegram import Update
 from telegram.ext import CommandHandler, CallbackContext
 from shivu import application
