@@ -207,13 +207,23 @@ async def check_total_characters(update: Update, context: CallbackContext) -> No
 async def gen(update: Update, context: CallbackContext) -> None:
     file = None
 
-    # Check if the user sent a document or an image
-    if update.message.document:
-        file = await context.bot.get_file(update.message.document.file_id)
-    elif update.message.photo:
-        # Get the highest resolution of the image (last one in the array)
-        file = await context.bot.get_file(update.message.photo[-1].file_id)
+    # Check if the command was used as a reply to an image or document
+    if update.message.reply_to_message:
+        # Handle image replies
+        if update.message.reply_to_message.photo:
+            file = await context.bot.get_file(update.message.reply_to_message.photo[-1].file_id)
+        # Handle document replies
+        elif update.message.reply_to_message.document:
+            file = await context.bot.get_file(update.message.reply_to_message.document.file_id)
     else:
+        # Handle direct document or image uploads
+        if update.message.document:
+            file = await context.bot.get_file(update.message.document.file_id)
+        elif update.message.photo:
+            file = await context.bot.get_file(update.message.photo[-1].file_id)
+
+    # If no file was found, prompt the user to reply with an image or document
+    if file is None:
         await update.message.reply_text("Please reply with an image or upload a file to generate a link.")
         return
 
@@ -226,7 +236,7 @@ async def gen(update: Update, context: CallbackContext) -> None:
         logging.error(f"Error in gen command: {str(e)}")
         await update.message.reply_text(f"Error uploading file: {e}")
 
-# Upload file to Catbox
+# Upload file to Catbox function remains unchanged
 def upload_to_catbox(file_path):
     url = 'https://catbox.moe/user/api.php'
     with open(file_path, 'rb') as f:
