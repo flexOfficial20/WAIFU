@@ -203,27 +203,35 @@ async def check_total_characters(update: Update, context: CallbackContext) -> No
         logging.error(f"Error in total command: {str(e)}")
         await update.message.reply_text(f"Error occurred: {e}")
 
+# Gen (Upload to Catbox) command
+async def gen(update: Update, context: CallbackContext) -> None:
+    file = None
+
+    # Check if the user sent a document or an image
+    if update.message.document:
+        file = await context.bot.get_file(update.message.document.file_id)
+    elif update.message.photo:
+        # Get the highest resolution of the image (last one in the array)
+        file = await context.bot.get_file(update.message.photo[-1].file_id)
+    else:
+        await update.message.reply_text("Please reply with an image or upload a file to generate a link.")
+        return
+
+    try:
+        # Download the file and upload it to Catbox
+        file_path = await file.download()
+        catbox_url = upload_to_catbox(file_path)
+        await update.message.reply_text(f"File uploaded to Catbox: {catbox_url}")
+    except Exception as e:
+        logging.error(f"Error in gen command: {str(e)}")
+        await update.message.reply_text(f"Error uploading file: {e}")
+
 # Upload file to Catbox
 def upload_to_catbox(file_path):
     url = 'https://catbox.moe/user/api.php'
     with open(file_path, 'rb') as f:
         response = requests.post(url, files={'fileToUpload': f}, data={'action': 'upload', 'format': 'json'})
     return response.json().get('url', '')
-
-# Gen (Upload to Catbox) command
-async def gen(update: Update, context: CallbackContext) -> None:
-    if not update.message.document:
-        await update.message.reply_text("Please upload a file to generate a link.")
-        return
-
-    try:
-        file_path = await context.bot.get_file(update.message.document.file_id)
-        file_path = await file_path.download()
-        catbox_url = upload_to_catbox(file_path)
-        await update.message.reply_text(f"File uploaded to Catbox: {catbox_url}")
-    except Exception as e:
-        logging.error(f"Error in gen command: {str(e)}")
-        await update.message.reply_text(f"Error uploading file: {e}")
 
 # Command handlers
 application.add_handler(CommandHandler("upload", upload))
