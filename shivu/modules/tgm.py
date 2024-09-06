@@ -1,27 +1,47 @@
+/eval import requests
 from telegram import Update
-from telegram.ext import CommandHandler
+from telegram.ext import CommandHandler, CallbackContext
 from shivu import application
-from telegraph import Telegraph
+IMGBB_API_KEY = '5a5dadd79df17356e7250672f8b1b00b'
 
-# Create a Telegraph account for your bot
-telegraph = Telegraph()
-telegraph.create_account(short_name='ShivuBot')
+# Function to upload image to ImgBB
+async def upload_to_imgbb(image_data):
+    try:
+        response = requests.post(
+            "https://api.imgbb.com/1/upload",
+            data={
+                'key': IMGBB_API_KEY,
+                'image': image_data
+            }
+        )
+        response_data = response.json()
 
-# Function to create telegraph page
-async def telegraph_link(update: Update, context):
-    if context.args:
-        title = ' '.join(context.args[:2])  # First 2 arguments as the title
-        content = ' '.join(context.args[2:])  # Rest as content
+        if response_data['success']:
+            return response_data['data']['url']
+        else:
+            return None
+    except Exception as e:
+        print(f"Error uploading to ImgBB: {str(e)}")
+        return None
 
-        # Create Telegraph page
-        response = telegraph.create_page(title, html_content=content)
-        link = f"https://telegra.ph/{response['path']}"
+# Command handler for /gens
+async def gens(update: Update, context: CallbackContext) -> None:
+    if not update.message.photo:
+        await update.message.reply_text("Please send an image with this command.")
+        return
 
-        await update.message.reply_text(f"Telegraph link: {link}")
+    # Get the highest quality image file (largest size)
+    file = await update.message.photo[-1].get_file()
+    image_data = file.download_as_bytearray()
+
+    # Upload to ImgBB
+    imgbb_url = await upload_to_imgbb(image_data)
+    
+    if imgbb_url:
+        await update.message.reply_text(f"Image successfully uploaded! Here's the URL:\n{imgbb_url}")
     else:
-        await update.message.reply_text("Usage: /telegraph [title] [content]")
+        await update.message.reply_text("Failed to upload image to ImgBB.")
 
-# Add command to Shivu bot
-application.add_handler(CommandHandler("telegraph", telegraph_link))
-
-# Run the bot
+# Handler for the /gens command
+GENS_HANDLER = CommandHandler('gens', gens, block=False)
+application.add_handler(GENS_HANDLER)
