@@ -1,8 +1,7 @@
-from pyrogram import Client, filters
+from telegram import Update
+from telegram.ext import Application, CommandHandler, CallbackContext
 import requests
-from shivu import application as app
-# Initialize your Pyrogram client
-
+from shivu import application
 IMGBB_API_KEY = '5a5dadd79df17356e7250672f8b1b00b'
 
 # Function to upload file to ImgBB
@@ -23,18 +22,30 @@ def upload_to_imgbb(file_path):
         return None
 
 # Command handler for /imgbb
-@app.on_message(filters.command(["imgbb"]))
-def imgbb_upload(client, message):
-    reply = message.reply_to_message
-    if reply and reply.media:
-        i = message.reply("𝐔ᴘʟᴏᴀᴅɪɴɢ 𝙔ᴏᴜʀ 𝐈ᴍᴀɢᴇ...")
-        file_path = reply.download()
-        imgbb_url = upload_to_imgbb(file_path)
+async def imgbb_upload(update: Update, context: CallbackContext) -> None:
+    reply = update.message.reply_to_message
+    if reply and reply.photo:
+        i = await update.message.reply_text("𝐔ᴘʟᴏᴀᴅɪɴɢ 𝙔ᴏᴜʀ 𝐈ᴍᴀɢᴇ...")
+        file = await reply.photo[-1].get_file()
+        file_path = await file.download_as_bytearray()
+        
+        # Save the downloaded file temporarily
+        with open("temp_image.jpg", "wb") as f:
+            f.write(file_path)
+        
+        imgbb_url = upload_to_imgbb("temp_image.jpg")
+        
         if imgbb_url:
-            i.edit(f'Yᴏᴜʀ ɪᴍᴀɢᴇ sᴜᴄᴄᴇssғᴜʟʟʏ ᴜᴘʟᴏᴀᴅᴇᴅ! Hᴇʀᴇ\'s ᴛʜᴇ ᴜʀʟ:\n{imgbb_url}')
+            await i.edit_text(f'Yᴏᴜʀ ɪᴍᴀɢᴇ sᴜᴄᴄᴇssғᴜʟʟʏ ᴜᴘʟᴏᴀᴅᴇᴅ! Hᴇʀᴇ\'s ᴛʜᴇ ᴜʀʟ:\n{imgbb_url}')
         else:
-            i.edit('Failed to upload image to ImgBB.')
+            await i.edit_text('Failed to upload image to ImgBB.')
     else:
-        message.reply("Please reply to an image with this command.")
+        await update.message.reply_text("Please reply to an image with this command.")
 
-# Start the bot
+# Initialize your Application object
+
+# Add the command handler to the application
+imgbb_handler = CommandHandler('imgbb', imgbb_upload)
+application.add_handler(imgbb_handler)
+
+# Run the bot
