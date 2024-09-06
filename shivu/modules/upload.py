@@ -14,7 +14,7 @@ img_url character-name anime-name rarity-number
 
 use rarity number accordingly rarity Map
 
-rarity_map = (⚪ Common=1) (🟢 Medium=2) (🟠 Rare=3) (🟡 Legendary=4) (💠 Cosmic=5) (💮 Exclusive=6) (🔮 Limited Edition=7)"""
+rarity_map = {1: "⚪ Common", 2: "🟠 Rare", 3: "🟡 Legendary", 4: "🟢 Medium", 5: "💠 Cosmic", 6: "💮 Exclusive", 7: "🔮 Limited Edition"}"""
 
 
 # Function to handle character ID sequence
