@@ -1,7 +1,8 @@
 import requests
 from telegram import Update
 from telegram.ext import CommandHandler, CallbackContext
-from shivu import application
+from shivu import application  # Assuming application is already initialized in shivu module
+
 IMGBB_API_KEY = '5a5dadd79df17356e7250672f8b1b00b'
 
 # Function to upload image to ImgBB
@@ -26,6 +27,7 @@ async def upload_to_imgbb(image_data):
 
 # Command handler for /gens
 async def gens(update: Update, context: CallbackContext) -> None:
+    # Check if the user has sent an image
     if not update.message.photo:
         await update.message.reply_text("Please send an image with this command.")
         return
@@ -36,12 +38,15 @@ async def gens(update: Update, context: CallbackContext) -> None:
 
     # Upload to ImgBB
     imgbb_url = await upload_to_imgbb(image_data)
-    
+
     if imgbb_url:
-        await update.message.reply_text(f"Image successfully uploaded! Here's the URL:\n{imgbb_url}")
+        # Send the image back to the user along with the URL
+        await update.message.reply_photo(photo=imgbb_url, caption=f"Image successfully uploaded! Here's the URL:\n{imgbb_url}")
     else:
         await update.message.reply_text("Failed to upload image to ImgBB.")
 
 # Handler for the /gens command
 GENS_HANDLER = CommandHandler('gens', gens, block=False)
+
+# Add the command handler to the bot's application
 application.add_handler(GENS_HANDLER)
