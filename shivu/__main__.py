@@ -23,16 +23,16 @@ first_correct_guesses = {}
 message_counts = {}
 
 # Set your main group chat ID where limited edition characters can spawn
-MAIN_GROUP_CHAT_ID = "-1002139024353"  # Replace with the actual main group chat ID
+MAIN_GROUP_CHAT_ID = "-1001234567890"  # Replace with the actual main group chat ID
 
 # Tracks how many characters have been spawned of each rarity in the current sequence
 rarity_spawn_count = {
-    'common': 0,
-    'medium': 0,
-    'rare': 0,
-    'legendary': 0,
-    'cosmic': 0,
-    'limited': 0
+    '⚪ Common': 0,
+    '🟢 Medium': 0,
+    '🟠 Rare': 0,
+    '🟡 Legendary': 0,
+    '💠 Cosmic': 0,
+    '🔮 Limited Edition': 0
 }
 
 # Track total messages to control cosmic and limited spawns
@@ -40,7 +40,7 @@ total_message_count = 0
 limited_spawn_count = 0  # Tracks how many limited characters have been spawned
 
 # Spawn sequence: 4 common, 3 medium, 2 rare, 1 legendary
-spawn_sequence = ['common'] * 4 + ['medium'] * 3 + ['rare'] * 2 + ['legendary'] * 1
+spawn_sequence = ['⚪ Common'] * 4 + ['🟢 Medium'] * 3 + ['🟠 Rare'] * 2 + ['🟡 Legendary'] * 1
 
 for module_name in ALL_MODULES:
     imported_module = importlib.import_module("shivu.modules." + module_name)
@@ -100,10 +100,10 @@ async def send_image(update: Update, context: CallbackContext) -> None:
 
     # Check if cosmic or limited edition should spawn based on total message count
     if total_message_count >= 5000 and limited_spawn_count < 25 and chat_id == MAIN_GROUP_CHAT_ID:
-        rarity = 'limited'
+        rarity = '🔮 Limited Edition'
         limited_spawn_count += 1
     elif total_message_count >= 3000:
-        rarity = 'cosmic'
+        rarity = '💠 Cosmic'
     else:
         # Follow the sequence: 4 common, 3 medium, 2 rare, 1 legendary
         rarity = get_next_rarity()
@@ -146,7 +146,7 @@ def get_next_rarity():
 
     # Reset if the sequence is complete
     rarity_spawn_count = {k: 0 for k in rarity_spawn_count}
-    return spawn_sequence[0]  # Start from 'common' again
+    return spawn_sequence[0]  # Start from '⚪ Common' again
 
 
 async def guess(update: Update, context: CallbackContext) -> None:
@@ -231,18 +231,17 @@ async def fav(update: Update, context: CallbackContext) -> None:
     await user_collection.update_one({'id': user_id}, {'$set': {'favorites': user['favorites']}})
 
     await update.message.reply_text(f'Character {character["name"]} has been added to your favorite...')
-    
 
 
 def main() -> None:
     """Run bot."""
-
-    application.add_handler(CommandHandler("guess", guess))
+    application.add_handler(CommandHandler(["guess", "protecc", "collect", "grab", "hunt"], guess))
     application.add_handler(CommandHandler("fav", fav))
 
     application.add_handler(MessageHandler(filters.TEXT, message_counter))
 
     application.run_polling(allowed_updates=Update.ALL_TYPES)
+
 
 if __name__ == '__main__':
     main()
