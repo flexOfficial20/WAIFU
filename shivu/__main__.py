@@ -254,7 +254,6 @@ async def fav(update: Update, context: CallbackContext) -> None:
     
 
 
-
 def main() -> None:
     """Run bot."""
 
