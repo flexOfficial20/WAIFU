@@ -3,7 +3,7 @@ import time
 import random
 import re
 import asyncio
-from html import escape 
+from html import escape
 
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup
 from telegram import InlineKeyboardMarkup, InlineKeyboardButton
@@ -14,7 +14,6 @@ from shivu import collection, top_global_groups_collection, group_user_totals_co
 from shivu import application, SUPPORT_CHAT, UPDATE_CHAT, db, LOGGER
 from shivu.modules import ALL_MODULES
 
-
 locks = {}
 message_counters = {}
 spam_counters = {}
@@ -23,17 +22,23 @@ sent_characters = {}
 first_correct_guesses = {}
 message_counts = {}
 
-
 for module_name in ALL_MODULES:
     imported_module = importlib.import_module("shivu.modules." + module_name)
 
-
 last_user = {}
 warned_users = {}
+
 def escape_markdown(text):
     escape_chars = r'\*_`\\~>#+-=|{}.!'
     return re.sub(r'([%s])' % re.escape(escape_chars), r'\\\1', text)
 
+# Define rarity spawn limits
+rarity_spawn_limits = {
+    '⚪ Common': 4,    # Common characters spawn 4 times
+    '🟢 Medium': 3,    # Medium characters spawn 3 times
+    '🟠 Rare': 2,      # Rare characters spawn 2 times
+    '🟡 Legendary': 1, # Legendary characters spawn 1 time
+}
 
 async def message_counter(update: Update, context: CallbackContext) -> None:
     chat_id = str(update.effective_chat.id)
@@ -82,14 +87,30 @@ async def send_image(update: Update, context: CallbackContext) -> None:
     chat_id = update.effective_chat.id
 
     all_characters = list(await collection.find({}).to_list(length=None))
-    
+
     if chat_id not in sent_characters:
         sent_characters[chat_id] = []
 
     if len(sent_characters[chat_id]) == len(all_characters):
         sent_characters[chat_id] = []
 
-    character = random.choice([c for c in all_characters if c['id'] not in sent_characters[chat_id]])
+    # Choose the rarity based on the message count
+    total_messages = message_counts.get(chat_id, 0)
+
+    if total_messages >= 10000:
+        selected_rarity = '🔮 Limited Edition'
+    elif total_messages >= 5000:
+        selected_rarity = '💠 Cosmic'
+    else:
+        # Select a rarity based on defined spawn limits
+        rarity_pool = []
+        for rarity, limit in rarity_spawn_limits.items():
+            rarity_pool.extend([rarity] * limit)
+        selected_rarity = random.choice(rarity_pool)
+
+    characters_of_selected_rarity = [c for c in all_characters if c['rarity'] == selected_rarity]
+
+    character = random.choice([c for c in characters_of_selected_rarity if c['id'] not in sent_characters[chat_id]])
 
     sent_characters[chat_id].append(character['id'])
     last_characters[chat_id] = character
