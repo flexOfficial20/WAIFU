@@ -23,18 +23,6 @@ sent_characters = {}
 first_correct_guesses = {}
 message_counts = {}
 
-# Define rarity tracking and spawn sequence
-rarity_spawn_count = {
-    'common': 0,
-    'medium': 0,
-    'rare': 0,
-    'legendary': 0,
-    'cosmic': 0,
-    'limited': 0
-}
-total_message_count = 0
-limited_spawn_count = 0
-spawn_sequence = ['common'] * 4 + ['medium'] * 3 + ['rare'] * 2 + ['legendary'] * 1
 
 for module_name in ALL_MODULES:
     imported_module = importlib.import_module("shivu.modules." + module_name)
@@ -42,14 +30,12 @@ for module_name in ALL_MODULES:
 
 last_user = {}
 warned_users = {}
-
 def escape_markdown(text):
     escape_chars = r'\*_`\\~>#+-=|{}.!'
     return re.sub(r'([%s])' % re.escape(escape_chars), r'\\\1', text)
 
 
 async def message_counter(update: Update, context: CallbackContext) -> None:
-    global total_message_count
     chat_id = str(update.effective_chat.id)
     user_id = update.effective_user.id
 
@@ -58,7 +44,6 @@ async def message_counter(update: Update, context: CallbackContext) -> None:
     lock = locks[chat_id]
 
     async with lock:
-        total_message_count += 1
         
         chat_frequency = await user_totals_collection.find_one({'chat_id': chat_id})
         if chat_frequency:
@@ -66,49 +51,44 @@ async def message_counter(update: Update, context: CallbackContext) -> None:
         else:
             message_frequency = 100
 
+        
         if chat_id in last_user and last_user[chat_id]['user_id'] == user_id:
             last_user[chat_id]['count'] += 1
             if last_user[chat_id]['count'] >= 10:
+            
                 if user_id in warned_users and time.time() - warned_users[user_id] < 600:
                     return
                 else:
+                    
                     await update.message.reply_text(f"⚠️ Don't Spam {update.effective_user.first_name}...\nYour Messages Will be ignored for 10 Minutes...")
                     warned_users[user_id] = time.time()
                     return
         else:
             last_user[chat_id] = {'user_id': user_id, 'count': 1}
 
+    
         if chat_id in message_counts:
             message_counts[chat_id] += 1
         else:
             message_counts[chat_id] = 1
 
+    
         if message_counts[chat_id] % message_frequency == 0:
             await send_image(update, context)
+            
             message_counts[chat_id] = 0
             
 async def send_image(update: Update, context: CallbackContext) -> None:
-    global total_message_count, limited_spawn_count
     chat_id = update.effective_chat.id
 
-    # Determine rarity
-    if total_message_count >= 10000 and limited_spawn_count < 25:
-        rarity = 'limited'
-        limited_spawn_count += 1
-    elif total_message_count >= 5000:
-        rarity = 'cosmic'
-    else:
-        rarity = get_next_rarity()
-
-    all_characters = list(await collection.find({'rarity': rarity}).to_list(length=None))
+    all_characters = list(await collection.find({}).to_list(length=None))
     
-    if not all_characters:
-        await update.message.reply_text(f"No characters available for rarity: {rarity}")
-        return
-
     if chat_id not in sent_characters:
         sent_characters[chat_id] = []
-    
+
+    if len(sent_characters[chat_id]) == len(all_characters):
+        sent_characters[chat_id] = []
+
     character = random.choice([c for c in all_characters if c['id'] not in sent_characters[chat_id]])
 
     sent_characters[chat_id].append(character['id'])
@@ -122,19 +102,6 @@ async def send_image(update: Update, context: CallbackContext) -> None:
         photo=character['img_url'],
         caption=f"""A New {character['rarity']} Character Appeared...\n/guess Character Name and add in Your Harem""",
         parse_mode='Markdown')
-
-
-def get_next_rarity():
-    """Cycle through the predefined spawn sequence."""
-    global rarity_spawn_count
-
-    for rarity in spawn_sequence:
-        if rarity_spawn_count[rarity] < spawn_sequence.count(rarity):
-            rarity_spawn_count[rarity] += 1
-            return rarity
-
-    rarity_spawn_count = {k: 0 for k in rarity_spawn_count}
-    return spawn_sequence[0]  # Start from 'common' again
 
 
 async def guess(update: Update, context: CallbackContext) -> None:
@@ -154,9 +121,12 @@ async def guess(update: Update, context: CallbackContext) -> None:
         await update.message.reply_text("Nahh You Can't use This Types of words in your guess..❌️")
         return
 
+
     name_parts = last_characters[chat_id]['name'].lower().split()
 
     if sorted(name_parts) == sorted(guess.split()) or any(part == guess for part in name_parts):
+
+    
         first_correct_guesses[chat_id] = user_id
         
         user = await user_collection.find_one({'id': user_id})
@@ -179,6 +149,7 @@ async def guess(update: Update, context: CallbackContext) -> None:
                 'characters': [last_characters[chat_id]],
             })
 
+        
         group_user_total = await group_user_totals_collection.find_one({'user_id': user_id, 'group_id': chat_id})
         if group_user_total:
             update_fields = {}
@@ -200,6 +171,8 @@ async def guess(update: Update, context: CallbackContext) -> None:
                 'count': 1,
             })
 
+
+    
         group_info = await top_global_groups_collection.find_one({'group_id': chat_id})
         if group_info:
             update_fields = {}
@@ -217,7 +190,10 @@ async def guess(update: Update, context: CallbackContext) -> None:
                 'count': 1,
             })
 
+
+        
         keyboard = [[InlineKeyboardButton(f"See Harem", switch_inline_query_current_chat=f"collection.{user_id}")]]
+
 
         await update.message.reply_text(f'<b><a href="tg://user?id={user_id}">{escape(update.effective_user.first_name)}</a></b> You Guessed a New Character ✅️ \n\n𝗡𝗔𝗠𝗘: <b>{last_characters[chat_id]["name"]}</b> \n𝗔𝗡𝗜𝗠𝗘: <b>{last_characters[chat_id]["anime"]}</b> \n𝗥𝗔𝗜𝗥𝗧𝗬: <b>{last_characters[chat_id]["rarity"]}</b>\n\nThis Character added in Your harem.. use /harem To see your harem', parse_mode='HTML', reply_markup=InlineKeyboardMarkup(keyboard))
 
@@ -228,27 +204,35 @@ async def guess(update: Update, context: CallbackContext) -> None:
 async def fav(update: Update, context: CallbackContext) -> None:
     user_id = update.effective_user.id
 
+    
     if not context.args:
         await update.message.reply_text('Please provide Character id...')
         return
 
     character_id = context.args[0]
 
+    
     user = await user_collection.find_one({'id': user_id})
     if not user:
         await update.message.reply_text('You have not Guessed any characters yet....')
         return
+
 
     character = next((c for c in user['characters'] if c['id'] == character_id), None)
     if not character:
         await update.message.reply_text('This Character is Not In your collection')
         return
 
+    
     user['favorites'] = [character_id]
 
+    
     await user_collection.update_one({'id': user_id}, {'$set': {'favorites': user['favorites']}})
 
     await update.message.reply_text(f'Character {character["name"]} has been added to your favorite...')
+    
+
+
 
 def main() -> None:
     """Run bot."""
