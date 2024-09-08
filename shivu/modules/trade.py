@@ -203,5 +203,3 @@ async def on_callback_query(client, callback_query):
         del pending_gifts[(sender_id, receiver_id)]
 
         await callback_query.message.edit_text(f"You have successfully gifted your character to [{gift['receiver_first_name']}](tg://user?id={receiver_id})!")
-
-
