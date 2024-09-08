@@ -34,13 +34,16 @@ async def inlinequery(update: Update, context: CallbackContext) -> None:
                 user = await user_collection.find_one({'id': int(user_id)})
                 user_collection_cache[user_id] = user
 
-            if user:
-                all_characters = list({v['id']: v for v in user['characters']}.values())
-                if search_terms:
-                    regex = re.compile(' '.join(search_terms), re.IGNORECASE)
-                    all_characters = [character for character in all_characters if regex.search(character['name']) or regex.search(character['anime'])]
-            else:
-                all_characters = []
+            # Handle case where user is not found
+            if not user:
+                await update.inline_query.answer([], cache_time=5, switch_pm_text="No characters found", switch_pm_parameter="start")
+                return  # Exit early to prevent further errors
+
+            # If user exists, proceed with fetching characters
+            all_characters = list({v['id']: v for v in user['characters']}.values())
+            if search_terms:
+                regex = re.compile(' '.join(search_terms), re.IGNORECASE)
+                all_characters = [character for character in all_characters if regex.search(character['name']) or regex.search(character['anime'])]
         else:
             all_characters = []
     else:
