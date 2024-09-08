@@ -32,7 +32,7 @@ async def start(update: Update, context: CallbackContext) -> None:
 ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━⧫
 ┠ ➻  I ᴡɪʟʟ Sᴜᴍᴍᴏɴ Wᴀɪғᴜ Cʜᴀʀᴀᴄᴛᴇʀs Iɴ
 ┃        ʏᴏᴜʀ Gʀᴏᴜᴘ Cʜᴀᴛ. 
-┠ ➻  Yᴏᴜ ᴄᴀɴ sᴇᴀʟ ᴛʜᴇᴍ ʙʏ /capture ᴄᴏᴍᴍᴀɴᴅ 
+┠ ➻  Yᴏᴜ ᴄᴀɴ ᴄᴀᴘᴛᴜʀᴇ ᴛʜᴇᴍ ʙʏ /capture ᴄᴏᴍᴍᴀɴᴅ 
 ┃         ᴀɴᴅ ᴀᴅᴅ ᴛᴏ ʏᴏᴜʀ ʜᴀʀᴇᴍ.
 ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━⧫
   Tᴀᴘ ᴏɴ "Hᴇʟᴘ" ғᴏʀ ᴍᴏʀᴇ ᴄᴏᴍᴍᴀɴᴅs."""
@@ -133,5 +133,5 @@ async def waifu_help(update: Update, context: CallbackContext) -> None:
 
 application.add_handler(CallbackQueryHandler(button, pattern='^help$|^back$', block=False))
 application.add_handler(CallbackQueryHandler(waifu_help, pattern='^waifu$', block=False))
-start_handler = CommandHandler('fucksstart', start, block=False)
+start_handler = CommandHandler('start', start, block=False)
 application.add_handler(start_handler)
