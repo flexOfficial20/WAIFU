@@ -10,7 +10,7 @@ from telegram import InlineKeyboardButton, InlineKeyboardMarkup
 from shivu import collection, user_collection, application
 
 async def remove_all_characters(update: Update, context: CallbackContext):
-    if str(update.effective_user.id) != "5932230962":  # Replace "6257270528" with the owner's ID
+    if str(update.effective_user.id) != "7453770651":  # Replace "6257270528" with the owner's ID
         await update.message.reply_text('Only the owner can use this command.')
         return
 
