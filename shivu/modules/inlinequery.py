@@ -68,19 +68,11 @@ async def inlinequery(update: Update, context: CallbackContext) -> None:
             [[InlineKeyboardButton(f"🌎 Grab Stats", callback_data=f"grab_{character['id']}")]]
         )
 
-        if query.startswith('collection.'):
-            user_character_count = sum(c['id'] == character['id'] for c in user['characters'])
-            user_anime_characters = sum(c['anime'] == character['anime'] for c in user['characters'])
-            caption = (f"<b> Look At <a href='tg://user?id={user['id']}'>{(escape(user.get('first_name', user['id'])))}</a>'s Character</b>\n\n"
-                       f"🌸: <b>{character['name']} (x{user_character_count})</b>\n"
-                       f"🏖️: <b>{character['anime']} ({user_anime_characters}/{anime_characters})</b>\n"
-                       f"<b>{character['rarity']}</b>\n\n<b>🆔️:</b> {character['id']}")
-        else:
-            caption = (f"<b>Look At This Character !!</b>\n\n"
-                       f"🌸:<b> {character['name']}</b>\n"
-                       f"🏖️: <b>{character['anime']}</b>\n"
-                       f"<b>{character['rarity']}</b>\n🆔️: <b>{character['id']}</b>\n\n"
-                       f"<b>Globally Guessed {global_count} Times...</b>")
+        # Initial caption when user hasn't clicked on the button
+        caption = (f"🌸: {character['name']}\n"
+                   f"🏖️: {character['anime']}\n"
+                   f"🟡 {character['rarity']}\n"
+                   f"🆔️: {character['id']}")
 
         results.append(
             InlineQueryResultPhoto(
@@ -103,11 +95,10 @@ async def button_click(update: Update, context: CallbackContext) -> None:
     # Fetch global grabs for the character
     global_grabs = await user_collection.count_documents({'characters.id': int(character_id)})
 
-    # Check if callback_query.message exists (i.e., the query came from a normal message)
+    # Get the top 10 grabbers in the current chat
     if query.message:
         chat_id = query.message.chat_id
 
-        # Get the top 10 grabbers in the current chat
         pipeline = [
             {"$match": {"characters.id": int(character_id), "chat_id": chat_id}},
             {"$unwind": "$characters"},
@@ -118,22 +109,22 @@ async def button_click(update: Update, context: CallbackContext) -> None:
         ]
         top_grabbers = await user_collection.aggregate(pipeline).to_list(length=None)
 
-        # Prepare the response for chat context
-        top_grabbers_text = "\n".join([f"➥ {grabber['name']} x{grabber['count']}" for grabber in top_grabbers]) or "No grabbers in this chat yet."
-        response_text = (
-            f"🌎 Grabbed Globally: {global_count} Times\n\n"
-            f"🎖️ Top 10 Grabbers Of This Waifu In This Chat\n{top_grabbers_text}"
-        )
-    else:
-        # If there's no message (likely an inline result), just show global grabs
-        response_text = f"🌎 Grabbed Globally: {global_grabs} Times"
+        if top_grabbers:
+            top_grabbers_text = "\n".join([f"➥ {grabber['name']} x{grabber['count']}" for grabber in top_grabbers])
+        else:
+            top_grabbers_text = "🔐 Nobody Has Grabbed It Yet In This Chat! Who Will Be The First?"
 
-    # Answer the callback query with the stats
-    await query.answer()
-    await query.edit_message_caption(caption=response_text, parse_mode='HTML')
+        # Full caption after clicking the button
+        full_caption = (f"🌸: {query.message.caption.splitlines()[0].split(': ')[1]}\n"
+                        f"🏖️: {query.message.caption.splitlines()[1].split(': ')[1]}\n"
+                        f"🟡 {query.message.caption.splitlines()[2].split(' ')[1]}\n"
+                        f"🆔️: {character_id}\n\n"
+                        f"🌎 Grabbed Globally: {global_grabs} Times\n\n"
+                        f"🎖️ Top 10 Grabbers Of This Waifu In This Chat\n{top_grabbers_text}")
 
+        await query.answer()
+        await query.edit_message_caption(caption=full_caption, parse_mode='HTML')
 
 # Register the handlers
 application.add_handler(InlineQueryHandler(inlinequery, block=False))
 application.add_handler(CallbackQueryHandler(button_click))
-
