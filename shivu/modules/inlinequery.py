@@ -1,23 +1,20 @@
 import re
 import time
-from html import escape
 from cachetools import TTLCache
-from pymongo import MongoClient, ASCENDING
-
+from pymongo import ASCENDING
 from telegram import Update, InlineQueryResultPhoto, InlineKeyboardButton, InlineKeyboardMarkup
-from telegram.ext import InlineQueryHandler, CallbackContext, CommandHandler, CallbackQueryHandler
-
+from telegram.ext import InlineQueryHandler, CallbackContext, CallbackQueryHandler
 from shivu import user_collection, collection, application, db
 
-# Rarity map for displaying correct emoji
+# Rarity map for displaying correct emoji and label
 rarity_map = {
-    "1": "⚪ Rarity: Common",
-    "2": "🟠 Rarity: Rare",
-    "3": "🟡 Rarity: Legendary",
-    "4": "🟢 Rarity: Medium",
-    "5": "💠 Rarity: Cosmic",
-    "6": "💮 Rarity: Exclusive",
-    "7": "🔮 Rarity: Limited Edition"
+    "1": "⚪ Common",
+    "2": "🟠 Rare",
+    "3": "🟡 Legendary",
+    "4": "🟢 Medium",
+    "5": "💠 Cosmic",
+    "6": "💮 Exclusive",
+    "7": "🔮 Limited Edition"
 }
 
 # Create indexes for faster querying
@@ -83,8 +80,8 @@ async def inlinequery(update: Update, context: CallbackContext) -> None:
         )
 
         # Initial caption when user hasn't clicked on the button
-        caption = (f"🌸: {character['name']}\n"
-                   f"🏖️: {character['anime']}\n"
+        caption = (f"🌸 Name: {character['name']}\n"
+                   f"🏖️ Anime: {character['anime']}\n"
                    f"{rarity_emoji}\n"
                    f"🆔️: {character['id']}")
 
@@ -132,8 +129,8 @@ async def button_click(update: Update, context: CallbackContext) -> None:
         rarity_emoji = rarity_map.get(str(character['rarity']), "Unknown")
 
         # Full caption after clicking the button
-        full_caption = (f"🌸: {query.message.caption.splitlines()[0].split(': ')[1]}\n"
-                        f"🏖️: {query.message.caption.splitlines()[1].split(': ')[1]}\n"
+        full_caption = (f"🌸 Name: {query.message.caption.splitlines()[0].split(': ')[1]}\n"
+                        f"🏖️ Anime: {query.message.caption.splitlines()[1].split(': ')[1]}\n"
                         f"{rarity_emoji}\n"
                         f"🆔️: {character_id}\n\n"
                         f"🌎 Grabbed Globally: {global_grabs} Times\n\n"
