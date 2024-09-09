@@ -52,16 +52,16 @@ async def inlinequery(update: Update, context: CallbackContext) -> None:
     else:
         if query:
             regex = re.compile(query, re.IGNORECASE)
-            all_characters = list(await collection.find({"$or": [{"name": regex}, {"anime": regex}]}, projection={'name': 1, 'anime': 1, 'rarity': 1, 'id': 1, 'img_url': 1}).to_list(length=20))
+            all_characters = list(await collection.find({"$or": [{"name": regex}, {"anime": regex}]}, projection={'name': 1, 'anime': 1, 'rarity': 1, 'id': 1, 'img_url': 1}).skip(offset).limit(20).to_list(length=20))
         else:
             if 'all_characters' in all_characters_cache:
                 all_characters = all_characters_cache['all_characters']
             else:
-                all_characters = list(await collection.find({}, projection={'name': 1, 'anime': 1, 'rarity': 1, 'id': 1, 'img_url': 1}).to_list(length=20))
+                all_characters = list(await collection.find({}, projection={'name': 1, 'anime': 1, 'rarity': 1, 'id': 1, 'img_url': 1}).skip(offset).limit(20).to_list(length=20))
                 all_characters_cache['all_characters'] = all_characters
 
-    characters = all_characters[offset:offset + 20]  # Limit to 20 results for faster response
-    next_offset = str(offset + len(characters)) if len(characters) == 20 else None
+    characters = all_characters[:20]  # Limit to 20 results for faster response
+    next_offset = str(offset + 20) if len(characters) == 20 else None  # Set next offset for the next batch
 
     results = []
     for character in characters:
@@ -101,13 +101,10 @@ async def button_click(update: Update, context: CallbackContext) -> None:
     # Fetch global grabs for the character
     global_grabs = await user_collection.count_documents({'characters.id': int(character_id)})
 
-    # Get the rarity label and emoji from the rarity_map
-    rarity_emoji = rarity_map.get(str(character['rarity']), "Unknown")
-
     # Full caption after clicking the button
     full_caption = (f"🌸: {query.message.caption.splitlines()[0].split(': ')[1]}\n"
                     f"🏖️: {query.message.caption.splitlines()[1].split(': ')[1]}\n"
-                    f"{rarity_emoji}\n"
+                    f"{rarity_map.get(str(character_id), 'Unknown')}\n"
                     f"🆔️: {character_id}\n\n"
                     f"🌎 Grabbed Globally: {global_grabs} Times")
 
