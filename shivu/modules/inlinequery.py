@@ -5,11 +5,22 @@ from cachetools import TTLCache
 from pymongo import MongoClient, ASCENDING
 
 from telegram import Update, InlineQueryResultPhoto, InlineKeyboardButton, InlineKeyboardMarkup
-from telegram.ext import InlineQueryHandler, CallbackContext
+from telegram.ext import InlineQueryHandler, CallbackContext, CommandHandler, CallbackQueryHandler
 
 from shivu import user_collection, collection, application, db
 
-# Setup indexes for collection and user_collection
+# Rarity map for displaying correct emoji
+rarity_map = {
+    "1": "⚪ Rarity: Common",
+    "2": "🟠 Rarity: Rare",
+    "3": "🟡 Rarity: Legendary",
+    "4": "🟢 Rarity: Medium",
+    "5": "💠 Rarity: Cosmic",
+    "6": "💮 Rarity: Exclusive",
+    "7": "🔮 Rarity: Limited Edition"
+}
+
+# Create indexes for faster querying
 db.characters.create_index([('id', ASCENDING)])
 db.characters.create_index([('anime', ASCENDING)])
 db.characters.create_index([('img_url', ASCENDING)])
@@ -18,20 +29,9 @@ db.user_collection.create_index([('characters.id', ASCENDING)])
 db.user_collection.create_index([('characters.name', ASCENDING)])
 db.user_collection.create_index([('characters.img_url', ASCENDING)])
 
-# Caches
+# Caching to improve performance
 all_characters_cache = TTLCache(maxsize=10000, ttl=36000)
 user_collection_cache = TTLCache(maxsize=10000, ttl=60)
-
-# Rarity mapping
-rarity_map = {
-    '⚪ Common': 1,
-    '🟠 Rare': 2,
-    '🟡 Legendary': 3,
-    '🟢 Medium': 4,
-    '💠 Cosmic': 5,
-    '💮 Exclusive': 6,
-    '🔮 Limited Edition': 7
-}
 
 async def inlinequery(update: Update, context: CallbackContext) -> None:
     query = update.inline_query.query
@@ -66,36 +66,27 @@ async def inlinequery(update: Update, context: CallbackContext) -> None:
                 all_characters = list(await collection.find({}).to_list(length=None))
                 all_characters_cache['all_characters'] = all_characters
 
-    # Pagination logic
-    characters = all_characters[offset:offset + 20]
-    next_offset = str(offset + len(characters)) if len(characters) == 20 else None
+    characters = all_characters[offset:offset+50]
+    next_offset = str(offset + 50) if len(characters) > 50 else str(offset + len(characters))
 
     results = []
-    displayed_ids = set()
-
     for character in characters:
-        if character['id'] in displayed_ids:
-            continue
-        displayed_ids.add(character['id'])
-
         global_count = await user_collection.count_documents({'characters.id': character['id']})
         anime_characters = await collection.count_documents({'anime': character['anime']})
 
-        # Rarity mapping
-        rarity = character.get('rarity', '')
-        rarity_symbol = [k for k, v in rarity_map.items() if rarity == v]
+        # Get the rarity label and emoji from the rarity_map
+        rarity_emoji = rarity_map.get(str(character['rarity']), "Unknown")
 
-        # Caption creation
-        caption = (
-            f"🌸: {character['name']}\n"
-            f"🏖️: {character['anime']}\n"
-            f"{rarity_symbol[0] if rarity_symbol else ''} Rarity: {rarity}\n"
-            f"🆔️: {character['id']}\n"
-            f"🌎 Grabbed Globally: {global_count} Times\n"
+        # Inline button for grabbing information
+        buttons = InlineKeyboardMarkup(
+            [[InlineKeyboardButton(f"🌎 Grab Stats", callback_data=f"grab_{character['id']}")]]
         )
 
-        # Inline button
-        buttons = [[InlineKeyboardButton("Grab Details", callback_data=f"grab_{character['id']}")]]
+        # Initial caption when user hasn't clicked on the button
+        caption = (f"🌸: {character['name']}\n"
+                   f"🏖️: {character['anime']}\n"
+                   f"{rarity_emoji}\n"
+                   f"🆔️: {character['id']}")
 
         results.append(
             InlineQueryResultPhoto(
@@ -103,50 +94,54 @@ async def inlinequery(update: Update, context: CallbackContext) -> None:
                 id=f"{character['id']}_{time.time()}",
                 photo_url=character['img_url'],
                 caption=caption,
-                reply_markup=InlineKeyboardMarkup(buttons),
-                parse_mode='HTML'
+                parse_mode='HTML',
+                reply_markup=buttons
             )
         )
 
     await update.inline_query.answer(results, next_offset=next_offset, cache_time=5)
 
-# Handle button callback for showing grab details
-async def grab_callback(update: Update, context: CallbackContext):
+
+async def button_click(update: Update, context: CallbackContext) -> None:
     query = update.callback_query
     character_id = query.data.split('_')[1]
 
-    # Fetch character details
-    character = await collection.find_one({'id': character_id})
-    if not character:
-        await query.answer("Character not found.", show_alert=True)
-        return
+    # Fetch global grabs for the character
+    global_grabs = await user_collection.count_documents({'characters.id': int(character_id)})
 
-    global_count = await user_collection.count_documents({'characters.id': character['id']})
-    chat_grabbers = await user_collection.find({'characters.id': character['id']}).limit(10).to_list(length=10)
+    # Get the top 10 grabbers in the current chat
+    if query.message:
+        chat_id = query.message.chat_id
 
-    # Build the message with top grabbers in the chat
-    if chat_grabbers:
-        top_grabbers_msg = "🎖️ Top 10 Grabbers Of This Waifu In This Chat\n"
-        for grabber in chat_grabbers:
-            grabber_count = sum(c['id'] == character['id'] for c in grabber['characters'])
-            top_grabbers_msg += f"➥ {grabber['first_name']} x{grabber_count}\n"
-    else:
-        top_grabbers_msg = "🔐 Nobody Has Grabbed It Yet In This Chat! Who Will Be The First?\n"
+        pipeline = [
+            {"$match": {"characters.id": int(character_id), "chat_id": chat_id}},
+            {"$unwind": "$characters"},
+            {"$match": {"characters.id": int(character_id)}},
+            {"$group": {"_id": "$id", "count": {"$sum": 1}, "name": {"$first": "$first_name"}}},
+            {"$sort": {"count": -1}},
+            {"$limit": 10}
+        ]
+        top_grabbers = await user_collection.aggregate(pipeline).to_list(length=None)
 
-    # Update message
-    await query.edit_message_caption(
-        caption=(
-            f"🌸: {character['name']}\n"
-            f"🏖️: {character['anime']}\n"
-            f"🟡 Rarity: {character['rarity']}\n"
-            f"🆔️: {character['id']}\n\n"
-            f"🌎 Grabbed Globally: {global_count} Times\n\n"
-            f"{top_grabbers_msg}"
-        ),
-        parse_mode='HTML'
-    )
+        if top_grabbers:
+            top_grabbers_text = "\n".join([f"➥ {grabber['name']} x{grabber['count']}" for grabber in top_grabbers])
+        else:
+            top_grabbers_text = "🔐 Nobody Has Grabbed It Yet In This Chat! Who Will Be The First?"
 
-# Register handlers
+        # Get the rarity label and emoji from the rarity_map
+        rarity_emoji = rarity_map.get(str(character['rarity']), "Unknown")
+
+        # Full caption after clicking the button
+        full_caption = (f"🌸: {query.message.caption.splitlines()[0].split(': ')[1]}\n"
+                        f"🏖️: {query.message.caption.splitlines()[1].split(': ')[1]}\n"
+                        f"{rarity_emoji}\n"
+                        f"🆔️: {character_id}\n\n"
+                        f"🌎 Grabbed Globally: {global_grabs} Times\n\n"
+                        f"🎖️ Top 10 Grabbers Of This Waifu In This Chat\n{top_grabbers_text}")
+
+        await query.answer()
+        await query.edit_message_caption(caption=full_caption, parse_mode='HTML')
+
+# Register the handlers
 application.add_handler(InlineQueryHandler(inlinequery, block=False))
-application.add_handler(CallbackQueryHandler(grab_callback, pattern=r"grab_\d+"))
-
+application.add_handler(CallbackQueryHandler(button_click))
