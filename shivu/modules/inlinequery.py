@@ -8,17 +8,6 @@ from telegram import Update, InlineQueryResultPhoto, InlineKeyboardButton, Inlin
 from telegram.ext import InlineQueryHandler, CallbackContext, CallbackQueryHandler
 from shivu import user_collection, collection, application, db
 
-# Rarity map for displaying correct emoji
-rarity_map = {
-    "1": "⚪ Common",
-    "2": "🟠 Rare",
-    "3": "🟡 Legendary",
-    "4": "🟢 Medium",
-    "5": "💠 Cosmic",
-    "6": "💮 Exclusive",
-    "7": "🔮 Limited Edition"
-}
-
 # Create indexes for faster querying
 db.characters.create_index([('id', ASCENDING)])
 db.characters.create_index([('anime', ASCENDING)])
@@ -80,17 +69,17 @@ async def inlinequery(update: Update, context: CallbackContext) -> None:
             user_character_count = sum(c['id'] == character['id'] for c in user['characters'])
             user_anime_characters = sum(c['anime'] == character['anime'] for c in user['characters'])
             caption = (f"<b>Look At <a href='tg://user?id={user['id']}'>{escape(user.get('first_name', user['id']))}</a>'s Character</b>\n\n"
-                       f"🌸 Name: <b>{character['name']} (x{user_character_count})</b>\n"
-                       f"🏖️ Anime: <b>{character['anime']} ({user_anime_characters}/{anime_characters})</b>\n"
-                       f"{rarity_map.get(str(character['rarity']), 'Unknown')}\n\n"
+                       f"🌸: <b>{character['name']} (x{user_character_count})</b>\n"
+                       f"🏖️: <b>{character['anime']} ({user_anime_characters}/{anime_characters})</b>\n"
+                       f"<b>{character['rarity']}</b>\n\n"
                        f"🆔️: <b>{character['id']}</b>")
         else:
             caption = (f"<b>Look At This Character !!</b>\n\n"
-                       f"🌸 Name: <b>{character['name']}</b>\n"
-                       f"🏖️ Anime: <b>{character['anime']}</b>\n"
-                       f"{rarity_map.get(str(character['rarity']), 'Unknown')}\n"
+                       f"🌸: <b>{character['name']}</b>\n"
+                       f"🏖️: <b>{character['anime']}</b>\n"
+                       f"<b>{character['rarity']}</b>\n"
                        f"🆔️: <b>{character['id']}</b>\n\n"
-                       f"<b>Globally Grabbed: {global_count} Times</b>")
+                       f"<b>Globally Guessed {global_count} Times...</b>")
 
         # Add inline button for grabbing information
         buttons = InlineKeyboardMarkup(
@@ -138,7 +127,7 @@ async def button_click(update: Update, context: CallbackContext) -> None:
         # Full caption after clicking the button
         full_caption = (f"🌸 Name: {query.message.caption.splitlines()[0].split(': ')[1]}\n"
                         f"🏖️ Anime: {query.message.caption.splitlines()[1].split(': ')[1]}\n"
-                        f"{rarity_map.get(str(query.message.caption.splitlines()[2].split(': ')[1]), 'Unknown')}\n"
+                        f"<b>{query.message.caption.splitlines()[2].split(': ')[1]}</b>\n"
                         f"🆔️: {character_id}\n\n"
                         f"🌎 Grabbed Globally: {global_grabs} Times\n\n"
                         f"🎖️ Top 10 Grabbers Of This Waifu In This Chat:\n{top_grabbers_text}")
