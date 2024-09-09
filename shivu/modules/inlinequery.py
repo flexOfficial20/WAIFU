@@ -4,19 +4,18 @@ from html import escape
 from cachetools import TTLCache
 from pymongo import MongoClient, ASCENDING
 
-from telegram import Update, InlineQueryResultPhoto
-from telegram.ext import InlineQueryHandler, CallbackContext, CommandHandler 
-from telegram import InlineKeyboardButton, InlineKeyboardMarkup
+from telegram import Update, InlineQueryResultPhoto, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram.ext import InlineQueryHandler, CallbackContext, CommandHandler, CallbackQueryHandler
 
 from shivu import user_collection, collection, application, db
 
 
-# collection
+# collection indexes
 db.characters.create_index([('id', ASCENDING)])
 db.characters.create_index([('anime', ASCENDING)])
 db.characters.create_index([('img_url', ASCENDING)])
 
-# user_collection
+# user_collection indexes
 db.user_collection.create_index([('characters.id', ASCENDING)])
 db.user_collection.create_index([('characters.name', ASCENDING)])
 db.user_collection.create_index([('characters.img_url', ASCENDING)])
@@ -38,7 +37,7 @@ async def inlinequery(update: Update, context: CallbackContext) -> None:
                 user_collection_cache[user_id] = user
 
             if user:
-                all_characters = list({v['id']:v for v in user['characters']}.values())
+                all_characters = list({v['id']: v for v in user['characters']}.values())
                 if search_terms:
                     regex = re.compile(' '.join(search_terms), re.IGNORECASE)
                     all_characters = [character for character in all_characters if regex.search(character['name']) or regex.search(character['anime'])]
@@ -76,7 +75,7 @@ async def inlinequery(update: Update, context: CallbackContext) -> None:
         else:
             caption = f"<b>Look At This Character !!</b>\n\n🌸:<b> {character['name']}</b>\n🏖️: <b>{character['anime']}</b>\n<b>{character['rarity']}</b>\n🆔️: <b>{character['id']}</b>\n\n<b>Globally Guessed {global_count} Times...</b>"
 
-        # Add the inline button here
+        # Add the inline button for "Grabbed Globally"
         buttons = [[InlineKeyboardButton("🌎 Grabbed Globally", callback_data=f"grab_{character['id']}")]]
         reply_markup = InlineKeyboardMarkup(buttons)
 
@@ -93,5 +92,40 @@ async def inlinequery(update: Update, context: CallbackContext) -> None:
 
     await update.inline_query.answer(results, next_offset=next_offset, cache_time=5)
 
-# Register the inline query handler
+
+async def button_click(update: Update, context: CallbackContext) -> None:
+    query = update.callback_query
+    character_id = query.data.split('_')[1]
+
+    # Fetch global and chat-specific grab data for the character
+    global_grabs = await user_collection.count_documents({'characters.id': int(character_id)})
+    chat_id = query.message.chat_id
+
+    # Get the top 10 grabbers in the current chat
+    pipeline = [
+        {"$match": {"characters.id": int(character_id), "chat_id": chat_id}},
+        {"$unwind": "$characters"},
+        {"$match": {"characters.id": int(character_id)}},
+        {"$group": {"_id": "$id", "count": {"$sum": 1}, "name": {"$first": "$first_name"}}},
+        {"$sort": {"count": -1}},
+        {"$limit": 10}
+    ]
+    top_grabbers = await user_collection.aggregate(pipeline).to_list(length=None)
+
+    # Prepare the response message
+    top_grabbers_text = "\n".join([f"➥ {grabber['name']} x{grabber['count']}" for grabber in top_grabbers]) or "No grabbers in this chat yet."
+
+    response_text = (
+        f"🌎 Grabbed Globally: {global_grabs} Times\n\n"
+        f"🎖️ Top 10 Grabbers Of This Waifu In This Chat:\n"
+        f"{top_grabbers_text}"
+    )
+
+    await query.answer()
+    await query.edit_message_caption(caption=response_text, parse_mode='HTML')
+
+
+# Register the handlers
 application.add_handler(InlineQueryHandler(inlinequery, block=False))
+application.add_handler(CallbackQueryHandler(button_click))
+
