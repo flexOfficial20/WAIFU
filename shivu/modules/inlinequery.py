@@ -121,7 +121,7 @@ async def button_click(update: Update, context: CallbackContext) -> None:
         # Prepare the response for chat context
         top_grabbers_text = "\n".join([f"➥ {grabber['name']} x{grabber['count']}" for grabber in top_grabbers]) or "No grabbers in this chat yet."
         response_text = (
-            f"🌎 Grabbed Globally: {global_grabs} Times\n\n"
+            f"🌎 Grabbed Globally: {global_count} Times\n\n"
             f"🎖️ Top 10 Grabbers Of This Waifu In This Chat\n{top_grabbers_text}"
         )
     else:
