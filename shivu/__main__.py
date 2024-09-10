@@ -3,7 +3,7 @@ import time
 import random
 import re
 import asyncio
-from html import escape 
+from html import escape
 
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup
 from telegram import Update
@@ -13,7 +13,7 @@ from shivu import collection, top_global_groups_collection, group_user_totals_co
 from shivu import application, SUPPORT_CHAT, UPDATE_CHAT, db, LOGGER
 from shivu.modules import ALL_MODULES
 
-
+# Global variables for tracking messages and users
 locks = {}
 message_counters = {}
 spam_counters = {}
@@ -22,18 +22,19 @@ sent_characters = {}
 first_correct_guesses = {}
 message_counts = {}
 
-
 for module_name in ALL_MODULES:
     imported_module = importlib.import_module("shivu.modules." + module_name)
 
-
+# Tracks the last message sent by a user to prevent spamming
 last_user = {}
 warned_users = {}
+
+# Escape markdown special characters in text
 def escape_markdown(text):
     escape_chars = r'\*_`\\~>#+-=|{}.!'
     return re.sub(r'([%s])' % re.escape(escape_chars), r'\\\1', text)
 
-
+# Function to count messages and handle spamming
 async def message_counter(update: Update, context: CallbackContext) -> None:
     chat_id = str(update.effective_chat.id)
     user_id = update.effective_user.id
@@ -69,13 +70,13 @@ async def message_counter(update: Update, context: CallbackContext) -> None:
         if message_counts[chat_id] % message_frequency == 0:
             await send_image(update, context)
             message_counts[chat_id] = 0
-            
 
+# Function to send a random waifu image
 async def send_image(update: Update, context: CallbackContext) -> None:
     chat_id = update.effective_chat.id
 
     all_characters = list(await collection.find({}).to_list(length=None))
-    
+
     if chat_id not in sent_characters:
         sent_characters[chat_id] = []
 
@@ -90,18 +91,16 @@ async def send_image(update: Update, context: CallbackContext) -> None:
     if chat_id in first_correct_guesses:
         del first_correct_guesses[chat_id]
 
-    # Send the waifu spawn message and save the message ID
     spawn_message = await context.bot.send_photo(
         chat_id=chat_id,
         photo=character['img_url'],
         caption=f"""A New {character['rarity']} Character Appeared...\n/guess Character Name and add in Your Harem""",
         parse_mode='Markdown'
     )
-    
-    # Save the waifu spawn message link to refer back in case of incorrect guesses
+
     last_characters[chat_id]['message_id'] = spawn_message.message_id
 
-
+# Function to handle guessing character names
 async def guess(update: Update, context: CallbackContext) -> None:
     chat_id = update.effective_chat.id
     user_id = update.effective_user.id
@@ -123,7 +122,6 @@ async def guess(update: Update, context: CallbackContext) -> None:
 
     guess = ' '.join(context.args).lower() if context.args else ''
 
-    # Prevent special characters in guess
     if "()" in guess or "&" in guess.lower():
         await update.message.reply_text("Nahh, You can't use special characters in your guess..❌️")
         return
@@ -134,7 +132,6 @@ async def guess(update: Update, context: CallbackContext) -> None:
         first_correct_guesses[chat_id] = user_id
         user = await user_collection.find_one({'id': user_id})
 
-        # Update user collection and favorites
         if user:
             update_fields = {}
             if hasattr(update.effective_user, 'username') and update.effective_user.username != user.get('username'):
@@ -154,7 +151,6 @@ async def guess(update: Update, context: CallbackContext) -> None:
                 'characters': [last_characters[chat_id]],
             })
 
-        # Group user totals update
         group_user_total = await group_user_totals_collection.find_one({'user_id': user_id, 'group_id': chat_id})
         if group_user_total:
             update_fields = {}
@@ -176,7 +172,6 @@ async def guess(update: Update, context: CallbackContext) -> None:
                 'count': 1,
             })
 
-        # Notify the user with a success message and a button to view their harem
         keyboard = [[InlineKeyboardButton(f"See Harem", switch_inline_query_current_chat=f"collection.{user_id}")]]
         await update.message.reply_text(
             f'<b><a href="tg://user?id={user_id}">{escape(update.effective_user.first_name)}</a></b> You guessed a new character ✅️ \n\n𝗡𝗔𝗠𝗘: <b>{last_characters[chat_id]["name"]}</b> \n𝗔𝗡𝗜𝗠𝗘: <b>{last_characters[chat_id]["anime"]}</b> \n𝗥𝗔𝗥𝗧𝗬: <b>{last_characters[chat_id]["rarity"]}</b>\n\nThis character has been added to your harem. Use /harem to view your harem.',
@@ -184,7 +179,6 @@ async def guess(update: Update, context: CallbackContext) -> None:
             reply_markup=InlineKeyboardMarkup(keyboard)
         )
     else:
-        # Provide the message link of the waifu spawn message for incorrect guesses
         waifu_message_id = last_characters[chat_id].get('message_id')
         waifu_message_link = f"https://t.me/c/{chat_id.lstrip('-')}/{waifu_message_id}" if waifu_message_id else "Message not found."
         
@@ -193,7 +187,7 @@ async def guess(update: Update, context: CallbackContext) -> None:
             parse_mode='Markdown'
         )
 
-
+# Function to add a favorite character
 async def fav(update: Update, context: CallbackContext) -> None:
     user_id = update.effective_user.id
 
@@ -218,8 +212,17 @@ async def fav(update: Update, context: CallbackContext) -> None:
     await user_collection.update_one({'id': user_id}, {'$set': {'favorite': found_character}})
     await update.message.reply_text(f'Updated favorite character to {found_character["name"]}')
 
-
 # Add command handlers
 application.add_handler(CommandHandler('guess', guess))
 application.add_handler(CommandHandler('fav', fav))
 application.add_handler(MessageHandler(filters.TEXT & (~filters.COMMAND), message_counter))
+
+# Main bot start function
+def main() -> None:
+    """Run bot."""
+    shivuu.start()
+    LOGGER.info("Bot started")
+    application.run_polling(drop_pending_updates=True)
+
+if __name__ == "__main__":
+    main()
