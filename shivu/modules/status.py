@@ -1,10 +1,33 @@
 from pyrogram import Client, filters
+from pyrogram.types import InlineKeyboardButton, InlineKeyboardMarkup, CallbackQuery
 from shivu import shivuu, collection, user_collection, group_user_totals_collection
-import random
 import asyncio
 
-async def get_user_collection():
-    return await user_collection.find({}).to_list(length=None)
+# Define button callback data
+WAIFU_CATEGORIES = {
+    "limited": "🔮 Limited Edition",
+    "cosmic": "💠 Cosmic",
+    "exclusive": "💮 Exclusive",
+    "legendary": "🟡 Legendary",
+    "rare": "🟠 Rare",
+    "medium": "🟢 Medium",
+    "common": "⚪ Common",
+}
+
+async def get_user_waifu_count_by_category(user_id):
+    """Returns a dictionary of waifu counts by category for a user."""
+    user = await user_collection.find_one({"id": user_id})
+    if not user or 'characters' not in user:
+        return {category: 0 for category in WAIFU_CATEGORIES}
+    
+    waifu_counts = {category: 0 for category in WAIFU_CATEGORIES}
+
+    for waifu in user.get('characters', []):
+        category = waifu.get('category')  # Assuming waifus have a 'category' field
+        if category in waifu_counts:
+            waifu_counts[category] += 1
+
+    return waifu_counts
 
 async def get_progress_bar(user_waifus_count, total_waifus_count):
     current = user_waifus_count
@@ -18,94 +41,109 @@ async def get_progress_bar(user_waifus_count, total_waifus_count):
     empty_width = bar_width - filled_width
 
     progress_bar = "▰" * filled_width + "▱" * empty_width
-    status = f"{progress_bar}"
-    return status, progress_percent
+    return progress_bar, progress_percent
 
-async def get_chat_top(chat_id: int, user_id: int) -> int:
-    pipeline = [
-        {"$match": {"group_id": chat_id}},
-        {"$sort": {"count": -1}},
-        {"$limit": 10}
+def get_rank(progress_percent):
+    ranks = [
+        (5, "Bronze 1"),
+        (10, "Bronze 2"),
+        (15, "Bronze 3"),
+        (20, "Gold 1"),
+        (25, "Gold 2"),
+        (30, "Gold 3"),
+        (35, "Platinum 1"),
+        (40, "Platinum 2"),
+        (45, "Platinum 3"),
+        (50, "Platinum 4"),
+        (55, "Diamond 1"),
+        (60, "Diamond 2"),
+        (65, "Diamond 3"),
+        (70, "Diamond 4"),
+        (75, "Master"),
     ]
-    cursor = group_user_totals_collection.aggregate(pipeline)
-    leaderboard_data = await cursor.to_list(length=None)
-    
-    for i, user in enumerate(leaderboard_data, start=1):
-        if user.get('user_id') == user_id:
-            return i
-    
-    return 0
 
-async def get_global_top(user_id: int) -> int:
-    pipeline = [
-        {"$project": {"id": 1, "characters_count": {"$size": {"$ifNull": ["$characters", []]}}}},
-        {"$sort": {"characters_count": -1}}
-    ]
-    cursor = user_collection.aggregate(pipeline)
-    leaderboard_data = await cursor.to_list(length=None)
-    
-    for i, user in enumerate(leaderboard_data, start=1):
-        if user.get('id') == user_id:
-            return i
-    
-    return 0
+    for percent, rank in ranks:
+        if progress_percent <= percent:
+            return rank
 
+    return "Grandmaster"
+
+# Status command with buttons
 @shivuu.on_message(filters.command(["status", "mystatus"]))
 async def send_grabber_status(client, message):
     try:
-        # Show loading animation
-        loading_message = await message.reply("🔄 Fetching Grabber Status...")
-
-        # Incrementally increase the number of dots in the loading message
-        for i in range(1, 6):
-            await asyncio.sleep(1)
-            await loading_message.edit_text("🔄 Fetching Grabber Status" + "." * i)
-
-        user_collection_data = await get_user_collection()
-        user_collection_count = len(user_collection_data)
-
         user_id = message.from_user.id
-        user = await user_collection.find_one({'id': user_id})
 
-        if user:
-            total_count = len(user.get('characters', []))
-        else:
-            total_count = 0
-
+        # Fetch user and waifu information
+        user_waifu_counts = await get_user_waifu_count_by_category(user_id)
         total_waifus_count = await collection.count_documents({})
 
-        chat_top = await get_chat_top(message.chat.id, user_id)
-        global_top = await get_global_top(user_id)
-
+        # Get waifu counts and rank
+        total_count = sum(user_waifu_counts.values())
         progress_bar, progress_percent = await get_progress_bar(total_count, total_waifus_count)
+        rank = get_rank(progress_percent)
 
+        # Prepare the grabber status message
         grabber_status = (
-            f"╭──「 ✨ 𝙐𝙎𝙀𝙍 𝙋𝙍𝙊𝙁𝙄𝙇𝙀 ✨ 」\n"
-            f"├─➩ 🌸 𝙉𝘼𝙈𝙀: `{message.from_user.first_name}`\n"
-            f"├─➩ 🔩 User ID: `{message.from_user.id}`\n"
-            f"├─➩ 🍀 𝘾𝙃𝘼𝙍𝘼𝘾𝙏𝙀𝙍𝙎 𝗖𝗢𝗨𝗡𝗧 : `{total_count}`\n"
-            f"├─➩ 🍀 𝘾𝙃𝘼𝙍𝘼𝘾𝙏𝙀𝙍𝙎 𝗖𝗢𝗨𝗡𝗧 : `{total_count}/{total_waifus_count}` ({progress_percent:.3f}%)\n"
-            f"├─➩ ℹ️ 𝐄𝐱𝐩𝐞𝐫𝐢𝐞𝐧𝐜𝐞 𝐋𝐞𝐯𝐞𝐥 : {user_collection_count // 100 + 1}\n"
-            f"├─➩⚜️ 𝙋𝙍𝙊𝙂𝙍𝙀𝙎𝙎 𝘽𝘼𝙍: {progress_bar}\n"
-            f"╰         {progress_percent:.2f}% Complete\n"
-            f"╭──────────────────\n"
-            f"├─➩ 🌍  𝘾𝙃𝘼𝙏 𝙏𝙊𝙋 : `{chat_top}`\n"
-            f"├─➩ 🌎  𝙂𝙇𝙊𝘽𝘼𝙇 𝙏𝙊𝙋 : `{global_top}`\n"
-            f"╰──────────────────"
+            f"╔════════ • ✧ • ════════╗\n"
+            f"          ⛩  『𝗨𝘀𝗲𝗿 𝗣𝗿𝗼𝗳𝗶𝗹𝗲』  ⛩\n"
+            f"══════════════════════\n"
+            f"➣ ❄️ 𝗡𝗮𝗺𝗲: `{message.from_user.first_name}`\n"
+            f"➣ 🍀 𝗨𝘀𝗲𝗿 𝗜𝗗: `{message.from_user.id}`\n"
+            f"━━━━━━━━━━━━━━━━━━━━━━\n"
+            f"➣ 👾 𝗖𝗵𝗮𝗿𝗮𝗰𝘁𝗲𝗿𝘀 𝗖𝗼𝗹𝗹𝗲𝗰𝘁𝗲𝗱: {total_count}\n"
+            f"➣ 💯 𝗣𝗲𝗿𝗰𝗲𝗻𝘁𝗮𝗴𝗲: {progress_percent:.2f}%\n"
+            f"━━━━━━━━━━━━━━━━━━━━━━\n"
+            f"➣ 🏅 𝗥𝗮𝗻𝗸: {rank}\n"
+            f"➣ 📈 𝗣𝗿𝗼𝗴𝗿𝗲𝘀𝘀 𝗕𝗮𝗿:\n"
+            f"[{progress_bar}]\n"
+            f"━━━━━━━━━━━━━━━━━━━━━━\n"
+            f"               ✨ 𝐊𝐞𝐞𝐩 𝐂𝐨𝐥𝐥𝐞𝐜𝐭𝐢𝐧𝐠 ✨\n"
+            f"╚════════ • ☆ • ════════╝"
         )
 
-        user_photo = await shivuu.download_media(message.from_user.photo.big_file_id)
+        # Create the inline keyboard with waifu categories
+        buttons = [
+            [InlineKeyboardButton(f"{icon} {name} → {user_waifu_counts[key]}", callback_data=f"waifu_{key}")]
+            for key, name in WAIFU_CATEGORIES.items()
+        ]
 
-        await client.send_photo(
-            chat_id=message.chat.id,
-            photo=user_photo,
-            caption=grabber_status,
-        )
+        buttons.append([InlineKeyboardButton("Waifus 💫", callback_data="waifu_main")])
 
-        # Delete the loading message after sending the actual response
-        await loading_message.delete()
+        reply_markup = InlineKeyboardMarkup(buttons)
+
+        # Send status message with buttons
+        await message.reply_text(grabber_status, reply_markup=reply_markup)
 
     except Exception as e:
         print(f"Error: {e}")
 
-# lol
+# Handle button clicks for waifu categories
+@shivuu.on_callback_query(filters.regex(r"^waifu_"))
+async def handle_waifu_category(client: Client, callback_query: CallbackQuery):
+    user_id = callback_query.from_user.id
+    data = callback_query.data.split("_")[1]
+
+    if data == "main":
+        # Main button redirect (back to profile or main waifu list)
+        await send_grabber_status(client, callback_query.message)
+    else:
+        # Show waifus by category
+        user_waifu_counts = await get_user_waifu_count_by_category(user_id)
+        selected_category = WAIFU_CATEGORIES.get(data, "Unknown Category")
+
+        # Simulate fetching waifus from the database based on category
+        waifus_in_category = [f"Waifu {i+1}" for i in range(user_waifu_counts[data])]
+
+        waifus_text = "\n".join(waifus_in_category) if waifus_in_category else "No waifus in this category."
+
+        # Add a back button to return to the profile
+        back_button = InlineKeyboardMarkup(
+            [[InlineKeyboardButton("🔙 Back", callback_data="waifu_main")]]
+        )
+
+        await callback_query.message.edit_text(
+            f"🔮 **Category:** {selected_category}\n"
+            f"👾 **Waifus:**\n{waifus_text}",
+            reply_markup=back_button
+        )
