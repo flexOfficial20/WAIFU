@@ -54,10 +54,10 @@ async def inlinequery(update: Update, context: CallbackContext) -> None:
                 all_characters = list(await collection.find({}).to_list(length=None))
                 all_characters_cache['all_characters'] = all_characters
 
-    characters = all_characters[offset:offset+50]
-    if len(characters) > 50:
-        characters = characters[:50]
-        next_offset = str(offset + 50)
+    characters = all_characters[offset:offset+20]
+    if len(characters) > 20:
+        characters = characters[:20]
+        next_offset = str(offset + 20)
     else:
         next_offset = str(offset + len(characters))
 
