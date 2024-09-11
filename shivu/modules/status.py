@@ -1,8 +1,7 @@
 from pyrogram import Client, filters
 from shivu import shivuu, collection, user_collection, group_user_totals_collection
-import random
 import asyncio
-from telegram import InlineKeyboardButton, InlineKeyboardMarkup
+from pyrogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 
 # Define waifu categories and their respective icons
 WAIFU_CATEGORIES = {
@@ -41,8 +40,7 @@ async def get_progress_bar(user_waifus_count, total_waifus_count):
     empty_width = bar_width - filled_width
 
     progress_bar = "▰" * filled_width + "▱" * empty_width
-    status = f"{progress_bar}"
-    return status, progress_percent
+    return progress_bar, progress_percent
 
 # Get chat top rank
 async def get_chat_top(chat_id: int, user_id: int) -> int:
@@ -119,6 +117,7 @@ async def send_grabber_status(client, message):
             f"╚════════ • ☆ • ════════╝"
         )
 
+        # Send the message with the inline keyboard
         await client.send_message(
             chat_id=message.chat.id,
             text=grabber_status,
