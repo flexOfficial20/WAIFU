@@ -1,7 +1,14 @@
 from pyrogram import Client, filters
-from shivu import shivuu, collection, user_collection, group_user_totals_collection
-import random
+from pyrogram.types import InlineKeyboardButton, InlineKeyboardMarkup
+from telegram import Update
+from telegram.ext import CommandHandler, CallbackContext, CallbackQueryHandler
 import asyncio
+from shivu import shivuu, collection, user_collection, group_user_totals_collection, db
+
+# MongoDB Collections
+groups_collection = db['top_global_groups']
+users_collection = db['user_collection_lmaoooo']
+characters_collection = db['anime_characters_lol']
 
 async def get_user_collection():
     return await user_collection.find({}).to_list(length=None)
@@ -133,12 +140,19 @@ async def send_grabber_status(client, message):
             f"╚════════ • ☆ • ════════╝"
         )
 
+        # Inline keyboard with rarity button
+        keyboard = [
+            [InlineKeyboardButton("Waifus 💫", callback_data='show_rarity')]
+        ]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+
         user_photo = await shivuu.download_media(message.from_user.photo.big_file_id)
 
         await client.send_photo(
             chat_id=message.chat.id,
             photo=user_photo,
             caption=grabber_status,
+            reply_markup=reply_markup
         )
 
         # Delete the loading message after sending the actual response
@@ -146,3 +160,36 @@ async def send_grabber_status(client, message):
 
     except Exception as e:
         print(f"Error: {e}")
+
+async def rarity_callback(update: Update, context: CallbackContext) -> None:
+    query = update.callback_query
+    await query.answer()
+
+    # Aggregate users by rarity
+    rarity_users_counts = {}
+    rarities = ['⚪ Common', '🟢 Medium', '🟠 Rare', '🟡 Legendary', '💠 Cosmic', '💮 Exclusive', '🔮 Limited Edition']
+
+    for rarity in rarities:
+        # Count unique users with characters of this rarity
+        users_with_rarity = await characters_collection.distinct(
+            'user_id', {'rarity': rarity}
+        )
+        rarity_users_counts[rarity] = len(users_with_rarity)
+
+    rarity_message = (
+        f"⚜️ Characters Count Sorted By Rarity\n\n"
+        f"⚪ Common: {rarity_users_counts.get('⚪ Common', 0)} users\n"
+        f"🟢 Medium: {rarity_users_counts.get('🟢 Medium', 0)} users\n"
+        f"🟠 Rare: {rarity_users_counts.get('🟠 Rare', 0)} users\n"
+        f"🟡 Legendary: {rarity_users_counts.get('🟡 Legendary', 0)} users\n"
+        f"💠 Cosmic: {rarity_users_counts.get('💠 Cosmic', 0)} users\n"
+        f"💮 Exclusive: {rarity_users_counts.get('💮 Exclusive', 0)} users\n"
+        f"🔮 Limited Edition: {rarity_users_counts.get('🔮 Limited Edition', 0)} users\n"
+    )
+
+    # Edit the message to show rarity information
+    await query.edit_message_text(rarity_message)
+
+# Add handlers
+shivuu.add_handler(CommandHandler("status", send_grabber_status))
+shivuu.add_handler(CallbackQueryHandler(rarity_callback, pattern='show_rarity'))
