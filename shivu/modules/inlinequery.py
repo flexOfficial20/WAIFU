@@ -35,7 +35,7 @@ async def inlinequery(update: Update, context: CallbackContext) -> None:
                 user_collection_cache[user_id] = user
 
             if user:
-                all_characters = list({v['id']:v for v in user['characters']}.values())
+                all_characters = list({v['id']: v for v in user['characters']}.values())
                 if search_terms:
                     regex = re.compile(' '.join(search_terms), re.IGNORECASE)
                     all_characters = [character for character in all_characters if regex.search(character['name']) or regex.search(character['anime'])]
@@ -68,6 +68,8 @@ async def inlinequery(update: Update, context: CallbackContext) -> None:
         if query.startswith('collection.'):
             user_character_count = sum(c['id'] == character['id'] for c in user['characters'])
             user_anime_characters = sum(c['anime'] == character['anime'] for c in user['characters'])
+            anime_characters = await collection.count_documents({'anime': character['anime']})
+            
             caption = (f"<b>Look At <a href='tg://user?id={user['id']}'>{escape(user.get('first_name', user['id']))}</a>'s Character</b>\n\n"
                        f"🌸: <b>{character['name']} (x{user_character_count})</b>\n"
                        f"🏖️: <b>{character['anime']} ({user_anime_characters}/{anime_characters})</b>\n"
@@ -138,3 +140,4 @@ async def button_click(update: Update, context: CallbackContext) -> None:
 # Register the handlers
 application.add_handler(InlineQueryHandler(inlinequery, block=False))
 application.add_handler(CallbackQueryHandler(button_click))
+
