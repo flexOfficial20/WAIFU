@@ -1,6 +1,7 @@
 from telegram import Update
 from telegram.ext import CommandHandler, CallbackContext
 from shivu import collection, application
+from html import escape  # Import the escape function
 
 async def search_character(update: Update, context: CallbackContext):
     # Get the name to search for from the command arguments
