@@ -1,7 +1,7 @@
 from telegram import Update
 from telegram.ext import CallbackContext
 from telegram.ext import MessageHandler, filters
-
+from shivu import application
 async def handle_photo(update: Update, context: CallbackContext):
     try:
         # Check if the message contains photos
