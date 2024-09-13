@@ -1,13 +1,13 @@
-import random
-import html
 import re
 import time
-from telegram import Update, InlineQueryResultPhoto, InlineKeyboardButton, InlineKeyboardMarkup
-from telegram.ext import InlineQueryHandler, CallbackContext, CallbackQueryHandler, CommandHandler
+from html import escape
+from cachetools import TTLCache
 from pymongo import ASCENDING
+from telegram import Update, InlineQueryResultPhoto, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram.ext import InlineQueryHandler, CallbackContext, CallbackQueryHandler
 from shivu import user_collection, collection, application, db
 
-# MongoDB Collections and Indexes
+# Create indexes for faster querying
 db.characters.create_index([('id', ASCENDING)])
 db.characters.create_index([('anime', ASCENDING)])
 db.characters.create_index([('img_url', ASCENDING)])
@@ -16,12 +16,10 @@ db.user_collection.create_index([('characters.id', ASCENDING)])
 db.user_collection.create_index([('characters.name', ASCENDING)])
 db.user_collection.create_index([('characters.img_url', ASCENDING)])
 
-# Cache setup
-from cachetools import TTLCache
+# Caching to improve performance
 all_characters_cache = TTLCache(maxsize=10000, ttl=36000)
 user_collection_cache = TTLCache(maxsize=10000, ttl=60)
 
-# Inline Query Handler
 async def inlinequery(update: Update, context: CallbackContext) -> None:
     query = update.inline_query.query
     offset = int(update.inline_query.offset) if update.inline_query.offset else 0
@@ -71,7 +69,7 @@ async def inlinequery(update: Update, context: CallbackContext) -> None:
             user_anime_characters = sum(c['anime'] == character['anime'] for c in user['characters'])
             anime_characters = await collection.count_documents({'anime': character['anime']})
             
-            caption = (f"<b>Look At <a href='tg://user?id={user['id']}'>{html.escape(user.get('first_name', user['id']))}</a>'s Character</b>\n\n"
+            caption = (f"<b>Look At <a href='tg://user?id={user['id']}'>{escape(user.get('first_name', user['id']))}</a>'s Character</b>\n\n"
                        f"🌸: <b>{character['name']} (x{user_character_count})</b>\n"
                        f"🏖️: <b>{character['anime']} ({user_anime_characters}/{anime_characters})</b>\n"
                        f"<b>{character['rarity']}</b>\n\n"
@@ -102,7 +100,6 @@ async def inlinequery(update: Update, context: CallbackContext) -> None:
 
     await update.inline_query.answer(results, next_offset=next_offset, cache_time=5)
 
-# Callback Query Handler
 async def button_click(update: Update, context: CallbackContext) -> None:
     query = update.callback_query
     character_id = int(query.data.split('_')[1])
@@ -130,8 +127,8 @@ async def button_click(update: Update, context: CallbackContext) -> None:
 
         # Full caption after clicking the button
         full_caption = (f"🌸 Name: {query.message.caption.splitlines()[0].split(': ')[1]}\n"
-                        f"🏖️ Anime: {query.message.caption.splitlines()[1].split(': ')[1]}\n"
-                        f"<b>{query.message.caption.splitlines()[2].split(': ')[1]}</b>\n"
+                        f"🏖️ Anime: {query.message.caption.splitlines()[2].split(': ')[1]}\n"
+                        f"🟡: {query.message.caption.splitlines()[1].split(': ')[1]}\n"
                         f"🆔️: {character_id}\n\n"
                         f"🌎 Grabbed Globally: {global_grabs} Times\n\n"
                         f"🎖️ Top 10 Grabbers Of This Waifu In This Chat:\n{top_grabbers_text}")
@@ -139,34 +136,6 @@ async def button_click(update: Update, context: CallbackContext) -> None:
         await query.answer()
         await query.edit_message_caption(caption=full_caption, parse_mode='HTML')
 
-# Command Handler for Top 10
-async def ctop(update: Update, context: CallbackContext) -> None:
-    chat_id = update.effective_chat.id
-
-    cursor = group_user_totals_collection.aggregate([
-        {"$match": {"group_id": chat_id}},
-        {"$project": {"username": 1, "first_name": 1, "character_count": "$count"}},
-        {"$sort": {"character_count": -1}},
-        {"$limit": 10}
-    ])
-    leaderboard_data = await cursor.to_list(length=10)
-
-    leaderboard_message = "<b>TOP 10 USERS WHO GUESSED CHARACTERS MOST TIMES IN THIS GROUP..</b>\n\n"
-
-    for i, user in enumerate(leaderboard_data, start=1):
-        username = user.get('username', 'Unknown')
-        first_name = html.escape(user.get('first_name', 'Unknown'))
-
-        if len(first_name) > 10:
-            first_name = first_name[:15] + '...'
-        character_count = user['character_count']
-        leaderboard_message += f'{i}. <a href="https://t.me/{username}"><b>{first_name}</b></a> ➾ <b>{character_count}</b>\n'
-
-    photo_url = random.choice(PHOTO_URL)  # Assuming PHOTO_URL is defined elsewhere
-
-    await update.message.reply_photo(photo=photo_url, caption=leaderboard_message, parse_mode='HTML')
-
 # Register the handlers
 application.add_handler(InlineQueryHandler(inlinequery, block=False))
 application.add_handler(CallbackQueryHandler(button_click))
-application.add_handler(CommandHandler("cthop", ctop))
