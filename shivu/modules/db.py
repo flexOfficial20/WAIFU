@@ -1,5 +1,5 @@
 from telegram import Update, InputFile
-from telegram.ext import CommandHandler, MessageHandler, Filters, CallbackContext
+from telegram.ext import CommandHandler, MessageHandler, filters, CallbackContext
 from shivu import collection, application
 import io
 
