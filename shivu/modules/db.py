@@ -24,4 +24,4 @@ async def handle_photo(update: Update, context: CallbackContext) -> None:
 
 # Add handlers for the /name command and photo messages
 application.add_handler(CommandHandler("name", handle_photo))
-application.add_handler(MessageHandler(filters.photo, handle_photo))
+application.add_handler(MessageHandler(filters._photo, handle_photo))
