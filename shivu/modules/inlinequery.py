@@ -69,18 +69,17 @@ async def inlinequery(update: Update, context: CallbackContext) -> None:
             user_anime_characters = sum(c['anime'] == character['anime'] for c in user['characters'])
             anime_characters = await collection.count_documents({'anime': character['anime']})
             
-            caption = (f"<b>Look At <a href='tg://user?id={user['id']}'>{escape(user.get('first_name', user['id']))}</a>'s Character</b>\n\n"
-                       f"🌸: <b>{character['name']} (x{user_character_count})</b>\n"
-                       f"🏖️: <b>{character['anime']} ({user_anime_characters}/{anime_characters})</b>\n"
-                       f"<b>{character['rarity']}</b>\n\n"
-                       f"🆔️: <b>{character['id']}</b>")
+            caption = (f"🌸 Name: {character['name']}\n"
+                       f"🟡: {character['rarity']}\n"
+                       f"🏖️ Anime: {character['anime']}\n"
+                       f"🆔️: {character['id']}\n\n"
+                       f"Globally Guessed {global_count} Times...")
         else:
-            caption = (f"<b>Look At This Character !!</b>\n\n"
-                       f"🌸: <b>{character['name']}</b>\n"
-                       f"🏖️: <b>{character['anime']}</b>\n"
-                       f"<b>{character['rarity']}</b>\n"
-                       f"🆔️: <b>{character['id']}</b>\n\n"
-                       f"<b>Globally Guessed {global_count} Times...</b>")
+            caption = (f"🌸 Name: {character['name']}\n"
+                       f"🟡: {character['rarity']}\n"
+                       f"🏖️ Anime: {character['anime']}\n"
+                       f"🆔️: {character['id']}\n\n"
+                       f"Globally Guessed {global_count} Times...")
 
         # Add inline button for grabbing information
         buttons = InlineKeyboardMarkup(
@@ -127,8 +126,8 @@ async def button_click(update: Update, context: CallbackContext) -> None:
 
         # Full caption after clicking the button
         full_caption = (f"🌸 Name: {query.message.caption.splitlines()[0].split(': ')[1]}\n"
-                        f"🏖️ Anime: {query.message.caption.splitlines()[2].split(': ')[1]}\n"
                         f"🟡: {query.message.caption.splitlines()[1].split(': ')[1]}\n"
+                        f"🏖️ Anime: {query.message.caption.splitlines()[2].split(': ')[1]}\n"
                         f"🆔️: {character_id}\n\n"
                         f"🌎 Grabbed Globally: {global_grabs} Times\n\n"
                         f"🎖️ Top 10 Grabbers Of This Waifu In This Chat:\n{top_grabbers_text}")
