@@ -1,5 +1,7 @@
 import random
 import html
+import re
+import time
 from telegram import Update, InlineQueryResultPhoto, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import InlineQueryHandler, CallbackContext, CallbackQueryHandler, CommandHandler
 from pymongo import ASCENDING
@@ -69,7 +71,7 @@ async def inlinequery(update: Update, context: CallbackContext) -> None:
             user_anime_characters = sum(c['anime'] == character['anime'] for c in user['characters'])
             anime_characters = await collection.count_documents({'anime': character['anime']})
             
-            caption = (f"<b>Look At <a href='tg://user?id={user['id']}'>{escape(user.get('first_name', user['id']))}</a>'s Character</b>\n\n"
+            caption = (f"<b>Look At <a href='tg://user?id={user['id']}'>{html.escape(user.get('first_name', user['id']))}</a>'s Character</b>\n\n"
                        f"🌸: <b>{character['name']} (x{user_character_count})</b>\n"
                        f"🏖️: <b>{character['anime']} ({user_anime_characters}/{anime_characters})</b>\n"
                        f"<b>{character['rarity']}</b>\n\n"
@@ -167,4 +169,4 @@ async def ctop(update: Update, context: CallbackContext) -> None:
 # Register the handlers
 application.add_handler(InlineQueryHandler(inlinequery, block=False))
 application.add_handler(CallbackQueryHandler(button_click))
-application.add_handler(CommandHandler("fctop", ctop))
+application.add_handler(CommandHandler("cthop", ctop))
