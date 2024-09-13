@@ -1,27 +1,27 @@
 from telegram import Update
-from telegram.ext import CommandHandler, MessageHandler, filters, CallbackContext
-from shivu import collection, application
-import io
+from telegram.ext import CallbackContext
+from telegram.ext import MessageHandler, filters
 
-async def handle_photo(update: Update, context: CallbackContext) -> None:
-    # Get the file_id of the photo
-    photo_file = update.message.photo[-1].get_file()
-    photo_file_id = update.message.photo[-1].file_id
+async def handle_photo(update: Update, context: CallbackContext):
+    try:
+        # Check if the message contains photos
+        if update.message.photo:
+            # Get the largest photo (last one in the list)
+            photo = update.message.photo[-1]
+            # Get the file object of the photo
+            photo_file = await photo.get_file()
+            
+            # Download the photo
+            file_path = await photo_file.download()
 
-    # Download the photo file
-    photo_bytes = io.BytesIO()
-    await photo_file.download_to_memory(photo_bytes)
-    photo_bytes.seek(0)  # Reset the file pointer to the beginning
+            # Perform your logic to process the image file here
+            await update.message.reply_text(f"Photo received and saved to {file_path}")
 
-    # Search the database for a matching image
-    found_character = await collection.find_one({"image_id": photo_file_id})
+        else:
+            await update.message.reply_text("No photo found in the message.")
 
-    if found_character:
-        character_name = found_character.get('name', 'Unknown')
-        await update.message.reply_text(f"Character Name: {character_name}")
-    else:
-        await update.message.reply_text("No matching character found.")
+    except Exception as e:
+        await update.message.reply_text(f"An error occurred: {str(e)}")
 
-# Add handlers for the /name command and photo messages
-application.add_handler(CommandHandler("name", handle_photo))
-application.add_handler(MessageHandler(filters._Photo, handle_photo))
+# Ensure you use the correct filter for photos
+application.add_handler(MessageHandler(filters._Photo handle_photo))
