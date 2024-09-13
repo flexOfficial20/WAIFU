@@ -1,30 +1,23 @@
-from telegram import Update, InputMediaPhoto
+from telegram import Update
 from telegram.ext import Application, CommandHandler, CallbackContext
 from html import escape
 
 from shivu import collection, application
 
 async def find_character(update: Update, context: CallbackContext):
-    # Get the character name to search for from the command arguments
-    character_name = " ".join(context.args).strip()
+    # Get the character ID from the command arguments
+    character_id = " ".join(context.args).strip()
 
-    if not character_name:
-        await update.message.reply_text("Please provide a character name to search for.")
+    if not character_id:
+        await update.message.reply_text("Please provide a character ID to search for.")
         return
 
-    # Search for the character by name in the total collection
-    character_cursor = collection.find({"name": {"$regex": f".*{character_name}.*", "$options": "i"}})
+    # Search for the character by ID in the collection
+    character = await collection.find_one({"id": character_id})
 
-    found_characters = []
-    async for character in character_cursor:
-        found_characters.append(character)
-
-    if not found_characters:
-        await update.message.reply_text("No characters found with that name.")
+    if not character:
+        await update.message.reply_text("No character found with that ID.")
         return
-
-    # Assuming that only one character will be found
-    character = found_characters[0]
 
     # Prepare the response message with character details
     response_message = (
@@ -44,7 +37,7 @@ async def find_character(update: Update, context: CallbackContext):
     # Prepare user list
     user_list_message = "✳️ 𝖧𝖾𝗋𝖾 𝗂𝗌 𝗍𝗁𝖾 𝗅𝗂𝗌𝗍 𝗈𝖿 𝗎𝗌𝖾𝗋𝗌 𝗐𝗁𝗈 𝗁𝖺𝗏𝖾 𝗍𝗁𝗂𝗌 𝖼𝗁𝖺𝗋𝖺𝑐𝗍𝖾𝗋 〽️:\n"
 
-    # Assuming user data is stored in a separate collection or within the character document
+    # Retrieve users who have the character
     user_cursor = collection.find({"character_id": character['id']})
     user_list = []
     async for user in user_cursor:
