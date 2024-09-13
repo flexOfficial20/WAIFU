@@ -2,19 +2,25 @@ from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import CallbackContext, CommandHandler, CallbackQueryHandler
 from html import escape
 import math
-from shivu import application
+
+# Assuming `user_collection` and `collection` are imported from your database module
+from shivu import user_collection, collection, application
+
 # Define rarity map
 rarity_map = {1: "⚪ Common", 2: "🟠 Rare", 3: "🟡 Legendary", 4: "🟢 Medium", 5: "💠 Cosmic", 6: "💮 Exclusive", 7: "🔮 Limited Edition"}
 
 async def hmode(update: Update, context: CallbackContext, page=0, rarity_filter=None, sort_type="alphabetical") -> None:
     user_id = update.effective_user.id
+
+    # Fetch user data
     user = await user_collection.find_one({'id': user_id})
     
     if not user:
+        message = 'You Have Not Guessed Any Characters Yet.' if update.message else 'You Have Not Guessed Any Characters Yet.'
         if update.message:
-            await update.message.reply_text('You Have Not Guessed Any Characters Yet.')
+            await update.message.reply_text(message)
         else:
-            await update.callback_query.edit_message_text('You Have Not Guessed Any Characters Yet.')
+            await update.callback_query.edit_message_text(message)
         return
 
     # Filter characters by rarity if a filter is set
