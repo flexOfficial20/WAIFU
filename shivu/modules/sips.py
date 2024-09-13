@@ -1,7 +1,8 @@
 from telegram import Update
-from telegram.ext import CommandHandler, CallbackContext
+from telegram.ext import Application, CommandHandler, CallbackContext
+from html import escape
+
 from shivu import collection, application
-from html import escape  # Import the escape function
 
 async def search_character(update: Update, context: CallbackContext):
     # Get the name to search for from the command arguments
@@ -31,5 +32,35 @@ async def search_character(update: Update, context: CallbackContext):
 
     await update.message.reply_text(response_message, parse_mode='HTML')
 
-# Add handler for the /sips command
+async def search_anime(update: Update, context: CallbackContext):
+    # Get the anime title to search for from the command arguments
+    anime_title = " ".join(context.args).strip()
+
+    if not anime_title:
+        await update.message.reply_text("Please provide an anime title to search for.")
+        return
+
+    # Search for characters by anime title in the total collection
+    characters_cursor = collection.find({"anime": {"$regex": f".*{anime_title}.*", "$options": "i"}})
+
+    found_characters = []
+    async for character in characters_cursor:
+        found_characters.append(character)
+
+    if not found_characters:
+        await update.message.reply_text(f"No characters found from anime titled '{anime_title}'.")
+        return
+
+    # Prepare the response message with found characters
+    response_message = f"<b>Characters from Anime '{escape(anime_title)}':</b>\n"
+    for character in found_characters:
+        response_message += f"ID: {character['id']}\n"
+        response_message += f"Name: {escape(character['name'])}\n"
+        response_message += f"Rarity: {escape(character['rarity'])}\n\n"
+
+    await update.message.reply_text(response_message, parse_mode='HTML')
+
+# Add handlers for the /sips and /sani commands
 application.add_handler(CommandHandler("sips", search_character))
+application.add_handler(CommandHandler("sani", search_anime))
+
