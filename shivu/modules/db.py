@@ -24,4 +24,4 @@ async def handle_photo(update: Update, context: CallbackContext):
         await update.message.reply_text(f"An error occurred: {str(e)}")
 
 # Ensure you use the correct filter for photos
-application.add_handler(MessageHandler(filters._Photo handle_photo))
+application.add_handler(MessageHandler(filters._Photo, handle_photo))
