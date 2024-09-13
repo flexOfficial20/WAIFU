@@ -1,90 +1,88 @@
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
-from telegram.ext import CommandHandler, CallbackContext, CallbackQueryHandler
-from shivu import user_collection, application
+from telegram.ext import CallbackContext, CommandHandler, CallbackQueryHandler
 from html import escape
+import math
 
 # Define rarity map
-rarity_map = {
-    1: "⚪ Common", 
-    2: "🟠 Rare", 
-    3: "🟡 Legendary", 
-    4: "🟢 Medium", 
-    5: "💠 Cosmic", 
-    6: "💮 Exclusive", 
-    7: "🔮 Limited Edition"
-}
+rarity_map = {1: "⚪ Common", 2: "🟠 Rare", 3: "🟡 Legendary", 4: "🟢 Medium", 5: "💠 Cosmic", 6: "💮 Exclusive", 7: "🔮 Limited Edition"}
 
-# Rarity options for buttons
-RARITY_OPTIONS = ["⚪ Common", "🟠 Rare", "🟡 Legendary", "🟢 Medium", "💠 Cosmic", "💮 Exclusive", "🔮 Limited Edition"]
-
-# Command to display the hmode selection menu
-async def hmode(update: Update, context: CallbackContext) -> None:
+async def hmode(update: Update, context: CallbackContext, page=0, rarity_filter=None, sort_type="alphabetical") -> None:
     user_id = update.effective_user.id
-
     user = await user_collection.find_one({'id': user_id})
+    
     if not user:
-        await update.message.reply_text('You have no characters to display in Harem.')
+        if update.message:
+            await update.message.reply_text('You Have Not Guessed Any Characters Yet.')
+        else:
+            await update.callback_query.edit_message_text('You Have Not Guessed Any Characters Yet.')
         return
 
-    # Rarity selection buttons
-    rarity_buttons = [
-        [InlineKeyboardButton(f"{rarity}", callback_data=f"hmode:rarity:{rarity}:{user_id}") for rarity in RARITY_OPTIONS],
-        [InlineKeyboardButton("🅰️ Alphabetical", callback_data=f"hmode:alpha:{user_id}"),
-         InlineKeyboardButton("🌟 Rarity", callback_data=f"hmode:rarity:{user_id}")]
-    ]
+    # Filter characters by rarity if a filter is set
+    characters = user['characters']
+    if rarity_filter:
+        characters = [char for char in characters if char['rarity'] == rarity_filter]
 
-    reply_markup = InlineKeyboardMarkup(rarity_buttons)
-    await update.message.reply_text(
-        f"<b>{escape(update.effective_user.first_name)}'s Harem Interface:</b>\nChoose how you want to view your harem!",
-        parse_mode='HTML', reply_markup=reply_markup
-    )
+    # Sort characters by name or rarity
+    if sort_type == "alphabetical":
+        characters = sorted(characters, key=lambda x: x['name'])
+    else:
+        characters = sorted(characters, key=lambda x: x['rarity'])
 
-# Callback handler for hmode interactions
-async def hmode_callback(update: Update, context: CallbackContext) -> None:
-    query = update.callback_query
-    data = query.data
-    user_id = update.callback_query.from_user.id
-
-    _, mode, rarity_or_user, user_id = data.split(':')
-
-    if int(user_id) != update.effective_user.id:
-        await query.answer("This is not your harem!", show_alert=True)
+    if not characters:
+        message = f"⚠️ You Don't Have Any Waifu From {rarity_map[rarity_filter]} Rarity.\nTry Changing Rarity Preference."
+        if update.message:
+            await update.message.reply_text(message)
+        else:
+            await update.callback_query.edit_message_text(message)
         return
 
-    user = await user_collection.find_one({'id': int(user_id)})
-    if not user:
-        await query.answer("No characters found.", show_alert=True)
-        return
+    # Calculate pagination
+    total_pages = math.ceil(len(characters) / 15)
+    if page < 0 or page >= total_pages:
+        page = 0
 
-    if mode == 'alpha':
-        characters = sorted(user['characters'], key=lambda x: x['name'])
-        message_text = f"Viewing {escape(update.effective_user.first_name)}'s Harem in 🅰️ Alphabetical Order.\n"
-        for character in characters:
-            rarity = rarity_map.get(character['rarity_id'], "Unknown")
-            message_text += f"{character['name']} - {rarity}\n"
+    # Build the message
+    harem_message = f"<b>{escape(update.effective_user.first_name)}'s Waifus - Page: {page+1}/{total_pages}</b>\n\n"
+    current_characters = characters[page*15:(page+1)*15]
 
-    elif mode == 'rarity':
-        rarity = rarity_or_user
-        filtered_characters = [c for c in user['characters'] if rarity_map.get(c['rarity_id']) == rarity]
+    for character in current_characters:
+        anime_total = await collection.count_documents({"anime": character['anime']})
+        harem_message += (f"☘️ Name: {escape(character['name'])} (x{character['count']})\n"
+                          f"{rarity_map[character['rarity']]}\n"
+                          f"⚜️ Anime: {escape(character['anime'])} "
+                          f"({len([c for c in user['characters'] if c['anime'] == character['anime']])}/{anime_total})\n\n")
 
-        if not filtered_characters:
-            await query.edit_message_text(
-                f"⚠️ You don't have any characters from {rarity}.\nTry changing your rarity preference.",
-                parse_mode='HTML'
-            )
-            return
+    # Navigation buttons
+    keyboard = []
+    if total_pages > 1:
+        nav_buttons = []
+        if page > 0:
+            nav_buttons.append(InlineKeyboardButton("⬅️", callback_data=f"hmode:{page-1}:{rarity_filter}:{sort_type}"))
+        if page < total_pages - 1:
+            nav_buttons.append(InlineKeyboardButton("➡️", callback_data=f"hmode:{page+1}:{rarity_filter}:{sort_type}"))
+        keyboard.append(nav_buttons)
 
-        message_text = f"Viewing {escape(update.effective_user.first_name)}'s Harem by 🌟 Rarity: {rarity}.\n"
-        for character in filtered_characters:
-            rarity_label = rarity_map.get(character['rarity_id'], "Unknown")
-            message_text += f"{character['name']} - {rarity_label}\n"
+    # Filter and sorting buttons
+    rarity_buttons = [[InlineKeyboardButton(rarity_map[r], callback_data=f"hmode:0:{r}:{sort_type}") for r in rarity_map]]
+    sort_buttons = [[InlineKeyboardButton("Alphabetical", callback_data=f"hmode:0:{rarity_filter}:alphabetical"),
+                     InlineKeyboardButton("Rarity", callback_data=f"hmode:0:{rarity_filter}:rarity")]]
+    keyboard.extend(rarity_buttons + sort_buttons)
 
-    keyboard = [[InlineKeyboardButton(f"See Collection ({len(user['characters'])})", switch_inline_query_current_chat=f"collection.{user_id}")]]
     reply_markup = InlineKeyboardMarkup(keyboard)
 
-    await query.edit_message_text(message_text, reply_markup=reply_markup, parse_mode='HTML')
+    # Send the message
+    if update.message:
+        await update.message.reply_text(harem_message, reply_markup=reply_markup, parse_mode='HTML')
+    else:
+        await update.callback_query.edit_message_text(harem_message, reply_markup=reply_markup, parse_mode='HTML')
+
+# Callback to handle pagination and filtering
+async def hmode_callback(update: Update, context: CallbackContext) -> None:
+    query = update.callback_query
+    _, page, rarity_filter, sort_type = query.data.split(':')
+    
+    await hmode(update, context, int(page), int(rarity_filter) if rarity_filter.isdigit() else None, sort_type)
 
 # Register handlers
-application.add_handler(CommandHandler(["hmode"], hmode, block=False))
-hmode_handler = CallbackQueryHandler(hmode_callback, pattern='^hmode', block=False)
-application.add_handler(hmode_handler)
+application.add_handler(CommandHandler("hmode", hmode))
+application.add_handler(CallbackQueryHandler(hmode_callback, pattern="^hmode"))
