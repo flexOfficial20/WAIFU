@@ -8,7 +8,7 @@ import random
 
 from shivu import collection, user_collection, application
 
-# Mapping for rarity display
+# Rarity mapping if needed
 rarity_map = {
     1: "⚪ Common",
     2: "🟠 Rare",
@@ -76,19 +76,19 @@ async def button_click(update: Update, context: CallbackContext) -> None:
     
     # Add check for valid callback data structure
     if not query.data or '_' not in query.data:
-        await query.answer("Invalid data", show_alert=True)
+        await query.answer("Invalid data format", show_alert=True)
         return
 
-    # Try parsing character ID safely
+    # Try parsing page number safely
     try:
-        action, page_number = query.data.split('_')
+        _, page_number = query.data.split('_')
         page_number = int(page_number)
     except (ValueError, IndexError):
-        await query.answer("Error parsing callback data", show_alert=True)
+        await query.answer("Error parsing page number", show_alert=True)
         return
 
-    # Continue with the existing logic after parsing the ID
-    if action == "harem":
+    # Ensure the action is correct
+    if query.data.startswith("harem"):
         await harem(update, context, page=page_number)
     else:
         await query.answer("Unknown action", show_alert=True)
