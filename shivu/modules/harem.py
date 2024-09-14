@@ -2,7 +2,8 @@ import re
 from html import escape
 from cachetools import TTLCache
 from pymongo import ASCENDING
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, ParseMode
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram.constants import ParseMode  # Updated import
 from telegram.ext import CommandHandler, CallbackQueryHandler, CallbackContext
 from shivu import user_collection, collection, application, db
 
@@ -69,7 +70,7 @@ async def harem(update: Update, context: CallbackContext) -> None:
         await update.message.reply_photo(
             photo=character['img_url'],
             caption=harem_message,
-            parse_mode=ParseMode.HTML,
+            parse_mode=ParseMode.HTML,  # Updated usage
             reply_markup=reply_markup
         )
     except Exception as e:
