@@ -53,12 +53,8 @@ async def inlinequery(update: Update, context: CallbackContext) -> None:
                 all_characters = list(await collection.find({}).to_list(length=None))
                 all_characters_cache['all_characters'] = all_characters
 
-    characters = all_characters[offset:offset+20]
-    if len(characters) > 20:
-        characters = characters[:20]
-        next_offset = str(offset + 20)
-    else:
-        next_offset = str(offset + len(characters))
+    characters = all_characters[offset:offset + 20]
+    next_offset = str(offset + 20) if len(all_characters) > offset + 20 else None
 
     results = []
     for character in characters:
@@ -69,17 +65,17 @@ async def inlinequery(update: Update, context: CallbackContext) -> None:
             user_anime_characters = sum(c['anime'] == character['anime'] for c in user['characters'])
             anime_characters = await collection.count_documents({'anime': character['anime']})
             
-            caption = (f"🌸 Name: {character['name']}\n"
-                       f"🟡: {character['rarity']}\n"
-                       f"🏖️ Anime: {character['anime']}\n"
-                       f"🆔️: {character['id']}\n\n"
-                       f"Globally Guessed {global_count} Times...")
+            caption = (f"🌸 Name: {escape(character['name'])}\n"
+                       f"🟡 Rarity: {character['rarity']}\n"
+                       f"🏖️ Anime: {escape(character['anime'])}\n"
+                       f"🆔️ ID: {character['id']}\n\n"
+                       f"Globally Guessed: {global_count} Times...")
         else:
-            caption = (f"🌸 Name: {character['name']}\n"
-                       f"🟡: {character['rarity']}\n"
-                       f"🏖️ Anime: {character['anime']}\n"
-                       f"🆔️: {character['id']}\n\n"
-                       f"Globally Guessed {global_count} Times...")
+            caption = (f"🌸 Name: {escape(character['name'])}\n"
+                       f"🟡 Rarity: {character['rarity']}\n"
+                       f"🏖️ Anime: {escape(character['anime'])}\n"
+                       f"🆔️ ID: {character['id']}\n\n"
+                       f"Globally Guessed: {global_count} Times...")
 
         # Add inline button for grabbing information
         buttons = InlineKeyboardMarkup(
@@ -126,15 +122,17 @@ async def button_click(update: Update, context: CallbackContext) -> None:
 
         # Full caption after clicking the button
         full_caption = (f"🌸 Name: {query.message.caption.splitlines()[0].split(': ')[1]}\n"
-                        f"🟡: {query.message.caption.splitlines()[1].split(': ')[1]}\n"
+                        f"🟡 Rarity: {query.message.caption.splitlines()[1].split(': ')[1]}\n"
                         f"🏖️ Anime: {query.message.caption.splitlines()[2].split(': ')[1]}\n"
-                        f"🆔️: {character_id}\n\n"
+                        f"🆔️ ID: {character_id}\n\n"
                         f"🌎 Grabbed Globally: {global_grabs} Times\n\n"
                         f"🎖️ Top 10 Grabbers Of This Waifu In This Chat:\n{top_grabbers_text}")
 
         await query.answer()
         await query.edit_message_caption(caption=full_caption, parse_mode='HTML')
+    else:
+        await query.answer("Unable to fetch chat details.")
 
 # Register the handlers
 application.add_handler(InlineQueryHandler(inlinequery, block=False))
-application.add_handler(CallbackQueryHandler(button_click))
+application.add_handler(CallbackQueryHandler(button_click, pattern='^grab_', block=False))
