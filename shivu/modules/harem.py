@@ -45,12 +45,16 @@ async def harem(update: Update, context: CallbackContext, page=0) -> None:
     # Group characters by anime
     current_grouped_characters = {k: list(v) for k, v in groupby(current_characters, key=lambda x: x['anime'])}
 
-    # Add character info to the message
+    # Add character info to the message with the desired format
     for anime, characters in current_grouped_characters.items():
-        harem_message += f'\n<b>{anime} {len(characters)}/{await collection.count_documents({"anime": anime})}</b>\n'
         for character in characters:
             count = character_counts[character['id']]
-            harem_message += f'☘️ Name: {escape(character["name"])} (x{count})\n'
+            rarity = character.get('rarity', 'Unknown')  # Assuming rarity is stored in the character object
+            harem_message += (
+                f"☘️ Name: {escape(character['name'])} (x{count})\n"
+                f"🟡 Rarity: {escape(rarity)}\n"
+                f"⚜️ Anime: {escape(anime)} ({len(characters)}/{await collection.count_documents({'anime': anime})})\n\n"
+            )
 
     total_count = len(user['characters'])
 
