@@ -1,10 +1,10 @@
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
-from telegram.ext import CommandHandler, CallbackContext, CallbackQueryHandler, Application
+from telegram.ext import CommandHandler, CallbackContext, CallbackQueryHandler
 from html import escape
 import math
 import random
 from itertools import groupby
-from shivu import collection, user_collection, db, application
+from shivu import collection, user_collection
 
 # Rarity levels
 RARITY_OPTIONS = {
@@ -16,9 +16,6 @@ RARITY_OPTIONS = {
     "💮 Exclusive": "💮 Exclusive",
     "🔮 Limited Edition": "🔮 Limited Edition"
 }
-
-# Dictionary to hold user rarity preferences
-hmode = {}
 
 async def harem(update: Update, context: CallbackContext, page=0, rarity_filter=None) -> None:
     user_id = update.effective_user.id
@@ -86,6 +83,7 @@ async def harem(update: Update, context: CallbackContext, page=0, rarity_filter=
             if update.message:
                 await update.message.reply_photo(photo=fav_character['img_url'], parse_mode='HTML', caption=harem_message, reply_markup=reply_markup)
             else:
+                # Check if the message has a caption before editing
                 if update.callback_query.message.caption:
                     await update.callback_query.edit_message_caption(caption=harem_message, reply_markup=reply_markup, parse_mode='HTML')
                 else:
@@ -94,6 +92,7 @@ async def harem(update: Update, context: CallbackContext, page=0, rarity_filter=
             if update.message:
                 await update.message.reply_text(harem_message, parse_mode='HTML', reply_markup=reply_markup)
             else:
+                # Check if the message has a caption before editing
                 if update.callback_query.message.caption:
                     await update.callback_query.edit_message_caption(caption=harem_message, reply_markup=reply_markup, parse_mode='HTML')
                 else:
@@ -106,6 +105,7 @@ async def harem(update: Update, context: CallbackContext, page=0, rarity_filter=
                 if update.message:
                     await update.message.reply_photo(photo=random_character['img_url'], parse_mode='HTML', caption=harem_message, reply_markup=reply_markup)
                 else:
+                    # Check if the message has a caption before editing
                     if update.callback_query.message.caption:
                         await update.callback_query.edit_message_caption(caption=harem_message, reply_markup=reply_markup, parse_mode='HTML')
                     else:
@@ -114,6 +114,7 @@ async def harem(update: Update, context: CallbackContext, page=0, rarity_filter=
                 if update.message:
                     await update.message.reply_text(harem_message, parse_mode='HTML', reply_markup=reply_markup)
                 else:
+                    # Check if the message has a caption before editing
                     if update.callback_query.message.caption:
                         await update.callback_query.edit_message_caption(caption=harem_message, reply_markup=reply_markup, parse_mode='HTML')
                     else:
@@ -122,50 +123,6 @@ async def harem(update: Update, context: CallbackContext, page=0, rarity_filter=
             if update.message:
                 await update.message.reply_text("Your List is Empty :)")
 
-async def hmode(update: Update, context: CallbackContext) -> None:
-    user_id = update.effective_user.id
-    keyboard = [
-        [InlineKeyboardButton(rarity, callback_data=f"harem:0:{user_id}:{value}")]
-        for rarity, value in RARITY_OPTIONS.items()
-    ]
-    keyboard.append([InlineKeyboardButton("Clear Filter", callback_data=f"harem:0:{user_id}:")])
-    reply_markup = InlineKeyboardMarkup(keyboard)
-    
-    if update.message:
-        await update.message.reply_text("Select Rarity to Filter By:", reply_markup=reply_markup)
-    else:
-        await update.callback_query.edit_message_text("Select Rarity to Filter By:", reply_markup=reply_markup)
-
-async def harem_callback(update: Update, context: CallbackContext) -> None:
-    query = update.callback_query
-    data = query.data
-
-    # Handle pagination and rarity filter
-    if data.startswith('harem:'):
-        _, page, user_id, rarity_filter = data.split(':')
-        page = int(page)
-        user_id = int(user_id)
-        rarity_filter = rarity_filter or None
-
-        if query.from_user.id != user_id:
-            await query.answer("It's Not Your Harem", show_alert=True)
-            return
-
-        # Save user hmode preference in the database
-        if rarity_filter:
-            await user_collection.update_one(
-                {'id': user_id},
-                {'$set': {'hmode': rarity_filter}},
-                upsert=True
-            )
-            caption = f"Rarity Preference Set To\n{rarity_filter}\nHarem Interface: 🐉 Default"
-            if query.message.caption:
-                await query.edit_message_caption(caption=caption, reply_markup=query.message.reply_markup, parse_mode='HTML')
-            else:
-                await query.edit_message_text(caption, reply_markup=query.message.reply_markup, parse_mode='HTML')
-        await harem(update, context, page, rarity_filter)
-
-# Add handlers to the application
-application.add_handler(CommandHandler("harem", harem))
-application.add_handler(CommandHandler("hmode", hmode))
-application.add_handler(CallbackQueryHandler(harem_callback))
+def setup_handlers(application):
+    application.add_handler(CommandHandler("harem", harem))
+    application.add_handler(CallbackQueryHandler(harem_callback))
