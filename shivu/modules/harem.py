@@ -169,10 +169,7 @@ async def harem_callback(update: Update, context: CallbackContext) -> None:
             )
         await harem(update, context, page, rarity_filter)
 
-# Add handlers and run the bot
- 
-    app.add_handler(CommandHandler("harem", harem))
-    app.add_handler(CommandHandler("hmode", hmode))
-    app.add_handler(CallbackQueryHandler(harem_callback))
-
-    
+# Add handlers
+application.add_handler(CommandHandler("harem", harem))
+application.add_handler(CommandHandler("hmode", hmode))
+application.add_handler(CallbackQueryHandler(harem_callback))
