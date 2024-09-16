@@ -30,9 +30,17 @@ async def harem(update: Update, context: CallbackContext, page=0, rarity_filter=
         return
 
     # Filter characters based on rarity if rarity_filter is provided
-    characters = sorted(user['characters'], key=lambda x: (x['anime'], x['id']))
-    if rarity_filter:
-        characters = [char for char in characters if char.get('rarity') == rarity_filter]
+    characters = [char for char in user.get('characters', []) if not rarity_filter or char.get('rarity') == rarity_filter]
+    
+    if not characters:
+        message = 'No characters match your rarity preference.'
+        if update.message:
+            await update.message.reply_text(message)
+        else:
+            await update.callback_query.edit_message_text(message)
+        return
+
+    characters = sorted(characters, key=lambda x: (x['anime'], x['id']))
 
     character_counts = {k: len(list(v)) for k, v in groupby(characters, key=lambda x: x['id'])}
     unique_characters = list({character['id']: character for character in characters}.values())
@@ -169,6 +177,9 @@ async def harem_callback(update: Update, context: CallbackContext) -> None:
         except ValueError:
             await query.answer("Invalid data format", show_alert=True)
 
+# Command handlers
 application.add_handler(CommandHandler("harem", harem))
 application.add_handler(CommandHandler("hmode", hmode))
-application.add_handler(CallbackQueryHandler(harem_callback))
+
+# Callback handlers
+application.add_handler(CallbackQueryHandler(harem_callback, pattern=r"harem:"))
