@@ -69,8 +69,8 @@ async def harem(update: Update, context: CallbackContext, page: int, rarity_filt
     # Create inline keyboard for pagination
     keyboard = [
         [
-            InlineKeyboardButton("Previous", callback_data=f"harem:{page - 1}:{user_id}:{rarity_filter}") if page > 1 else InlineKeyboardButton("Previous", callback_data=""),
-            InlineKeyboardButton("Next", callback_data=f"harem:{page + 1}:{user_id}:{rarity_filter}") if page < total_pages else InlineKeyboardButton("Next", callback_data=""),
+            InlineKeyboardButton("Previous", callback_data=f"harem:{page - 1}:{user_id}:{rarity_filter}") if page > 1 else InlineKeyboardButton("Previous", callback_data="no_action"),
+            InlineKeyboardButton("Next", callback_data=f"harem:{page + 1}:{user_id}:{rarity_filter}") if page < total_pages else InlineKeyboardButton("Next", callback_data="no_action"),
         ]
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
@@ -111,4 +111,5 @@ application.add_handler(CommandHandler('harem', harem_command))
 application.add_handler(CommandHandler('hmode', hmode_command))
 application.add_handler(CallbackQueryHandler(hmode_callback, pattern='^hmode:'))
 application.add_handler(CallbackQueryHandler(harem_callback, pattern='^harem:'))
+
 
