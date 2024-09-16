@@ -1,129 +1,138 @@
-import re
-from html import escape
-from cachetools import TTLCache
-from pymongo import ASCENDING
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
-from telegram.constants import ParseMode  # Updated import
-from telegram.ext import CommandHandler, CallbackQueryHandler, CallbackContext
-from shivu import user_collection, collection, application, db
+from telegram import Update
+from itertools import groupby
+import math
+from html import escape 
+import random
 
-# Create indexes for faster querying
-db.characters.create_index([('id', ASCENDING)])
-db.characters.create_index([('anime', ASCENDING)])
-db.characters.create_index([('img_url', ASCENDING)])
+from telegram.ext import CommandHandler, CallbackContext, CallbackQueryHandler
+from telegram import InlineKeyboardButton, InlineKeyboardMarkup
 
-db.user_collection.create_index([('characters.id', ASCENDING)])
-db.user_collection.create_index([('characters.name', ASCENDING)])
-db.user_collection.create_index([('characters.img_url', ASCENDING)])
+from shivu import collection, user_collection, application
 
-# Caching to improve performance
-user_collection_cache = TTLCache(maxsize=10000, ttl=60)
+async def harem(update: Update, context: CallbackContext, page=0) -> None:
+    user_id = update.effective_user.id
 
-async def harem(update: Update, context: CallbackContext) -> None:
-    query = update.message.text.split(maxsplit=1)
-    if len(query) < 2:
-        await update.message.reply_text("Please provide a valid character ID.")
-        return
-
-    character_id = query[1].strip()
-    user_id = str(update.message.from_user.id)
-
-    # Fetch the character data
-    character = await collection.find_one({'id': int(character_id)})
-    if not character:
-        await update.message.reply_text("Character not found.")
-        return
-
-    # Fetch user data from cache or database
-    if user_id in user_collection_cache:
-        user = user_collection_cache[user_id]
-    else:
-        user = await user_collection.find_one({'id': int(user_id)})
-        if user:
-            user_collection_cache[user_id] = user
+    user = await user_collection.find_one({'id': user_id})
+    if not user:
+        if update.message:
+            await update.message.reply_text('You Have Not Guessed any Characters Yet..')
         else:
-            user_collection_cache[user_id] = {}
+            await update.callback_query.edit_message_text('You Have Not Guessed any Characters Yet..')
+        return
 
-    if user:
-        user_characters = {c['id'] for c in user.get('characters', [])}
-        is_favorite = character['id'] in user_characters
-    else:
-        is_favorite = False
+    characters = sorted(user['characters'], key=lambda x: (x['anime'], x['id']))
 
-    # Compose the caption message
-    harem_message = (
-        f"🌸 Name: {escape(character['name'])}\n"
-        f"🟡 Rarity: {escape(character.get('rarity', 'Unknown'))}\n"
-        f"🏖️ Anime: {escape(character['anime'])}\n"
-        f"🆔️ ID: {character['id']}\n\n"
-    )
+    character_counts = {k: len(list(v)) for k, v in groupby(characters, key=lambda x: x['id'])}
+
     
-    # Add inline button for favoriting the character
-    favorite_button = InlineKeyboardButton(
-        text="⭐ Favorite" if not is_favorite else "⭐ Unfavorite",
-        callback_data=f"favorite_{character['id']}"
-    )
+    unique_characters = list({character['id']: character for character in characters}.values())
 
-    reply_markup = InlineKeyboardMarkup([[favorite_button]])
+    
+    total_pages = math.ceil(len(unique_characters) / 15)  
 
-    try:
-        await update.message.reply_photo(
-            photo=character['img_url'],
-            caption=harem_message,
-            parse_mode=ParseMode.HTML,  # Updated usage
-            reply_markup=reply_markup
-        )
-    except Exception as e:
-        await update.message.reply_text(f"An error occurred: {e}")
+    if page < 0 or page >= total_pages:
+        page = 0  
 
-async def favorite(update: Update, context: CallbackContext) -> None:
+    harem_message = f"<b>{escape(update.effective_user.first_name)}'s Harem - Page {page+1}/{total_pages}</b>\n"
+
+    
+    current_characters = unique_characters[page*15:(page+1)*15]
+
+    
+    current_grouped_characters = {k: list(v) for k, v in groupby(current_characters, key=lambda x: x['anime'])}
+
+    for anime, characters in current_grouped_characters.items():
+        harem_message += f'\n<b>{anime} {len(characters)}/{await collection.count_documents({"anime": anime})}</b>\n'
+
+        for character in characters:
+            
+            count = character_counts[character['id']]  
+            harem_message += f'{character["id"]} {character["name"]} ×{count}\n'
+
+
+    total_count = len(user['characters'])
+    
+    keyboard = [[InlineKeyboardButton(f"See Collection ({total_count})", switch_inline_query_current_chat=f"collection.{user_id}")]]
+
+
+    if total_pages > 1:
+        
+        nav_buttons = []
+        if page > 0:
+            nav_buttons.append(InlineKeyboardButton("⬅️", callback_data=f"harem:{page-1}:{user_id}"))
+        if page < total_pages - 1:
+            nav_buttons.append(InlineKeyboardButton("➡️", callback_data=f"harem:{page+1}:{user_id}"))
+        keyboard.append(nav_buttons)
+
+    reply_markup = InlineKeyboardMarkup(keyboard)
+
+    if 'favorites' in user and user['favorites']:
+        
+        fav_character_id = user['favorites'][0]
+        fav_character = next((c for c in user['characters'] if c['id'] == fav_character_id), None)
+
+        if fav_character and 'img_url' in fav_character:
+            if update.message:
+                await update.message.reply_photo(photo=fav_character['img_url'], parse_mode='HTML', caption=harem_message, reply_markup=reply_markup)
+            else:
+                
+                if update.callback_query.message.caption != harem_message:
+                    await update.callback_query.edit_message_caption(caption=harem_message, reply_markup=reply_markup, parse_mode='HTML')
+        else:
+            if update.message:
+                await update.message.reply_text(harem_message, parse_mode='HTML', reply_markup=reply_markup)
+            else:
+                
+                if update.callback_query.message.text != harem_message:
+                    await update.callback_query.edit_message_text(harem_message, parse_mode='HTML', reply_markup=reply_markup)
+    else:
+        
+        if user['characters']:
+        
+            random_character = random.choice(user['characters'])
+
+            if 'img_url' in random_character:
+                if update.message:
+                    await update.message.reply_photo(photo=random_character['img_url'], parse_mode='HTML', caption=harem_message, reply_markup=reply_markup)
+                else:
+                    
+                    if update.callback_query.message.caption != harem_message:
+                        await update.callback_query.edit_message_caption(caption=harem_message, reply_markup=reply_markup, parse_mode='HTML')
+            else:
+                if update.message:
+                    await update.message.reply_text(harem_message, parse_mode='HTML', reply_markup=reply_markup)
+                else:
+                
+                    if update.callback_query.message.text != harem_message:
+                        await update.callback_query.edit_message_text(harem_message, parse_mode='HTML', reply_markup=reply_markup)
+        else:
+            if update.message:
+                await update.message.reply_text("Your List is Empty :)")
+
+
+async def harem_callback(update: Update, context: CallbackContext) -> None:
     query = update.callback_query
-    character_id = int(query.data.split('_')[1])
-    user_id = str(query.from_user.id)
+    data = query.data
 
-    # Fetch user data from cache or database
-    if user_id in user_collection_cache:
-        user = user_collection_cache[user_id]
-    else:
-        user = await user_collection.find_one({'id': int(user_id)})
-        if user:
-            user_collection_cache[user_id] = user
-        else:
-            user_collection_cache[user_id] = {}
-            user = user_collection_cache[user_id]
 
-    if user:
-        user_characters = {c['id'] for c in user.get('characters', [])}
+    _, page, user_id = data.split(':')
 
-        if character_id in user_characters:
-            user_characters.remove(character_id)
-            await user_collection.update_one(
-                {'id': int(user_id)},
-                {'$pull': {'characters': {'id': character_id}}}
-            )
-            action = "removed from"
-        else:
-            user_characters.add(character_id)
-            await user_collection.update_one(
-                {'id': int(user_id)},
-                {'$push': {'characters': {'id': character_id}}}
-            )
-            action = "added to"
 
-        user_collection_cache[user_id] = {'characters': [{'id': cid} for cid in user_characters]}
+    page = int(page)
+    user_id = int(user_id)
 
-        await query.answer(f"Character has been {action} your favorites.")
-        await query.edit_message_reply_markup(
-            reply_markup=InlineKeyboardMarkup(
-                [[InlineKeyboardButton(
-                    text="⭐ Unfavorite" if action == "added to" else "⭐ Favorite",
-                    callback_data=f"favorite_{character_id}"
-                )]]
-            )
-        )
-    else:
-        await query.answer("Error processing your request. Please try again later.")
+    
+    if query.from_user.id != user_id:
+        await query.answer("its Not Your Harem", show_alert=True)
+        return
 
-# Register the handlers
-application.add_handler(CommandHandler('harem', harem, block=False))
-application.add_handler(CallbackQueryHandler(favorite, pattern='^favorite_', block=False))
+    
+    await harem(update, context, page)
+
+
+
+
+application.add_handler(CommandHandler(["harem", "collection"], harem,block=False))
+harem_handler = CallbackQueryHandler(harem_callback, pattern='^harem', block=False)
+application.add_handler(harem_handler)
+    
