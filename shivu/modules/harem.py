@@ -1,8 +1,10 @@
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import CommandHandler, CallbackContext, CallbackQueryHandler
-from shivu import collection, user_collection, db, application
+from shivu import collection, user_collection, application
 from html import escape
 import math
+import random
+from itertools import groupby
 
 # Helper function to save rarity preference in the database
 async def save_rarity_preference(user_id, rarity):
@@ -13,55 +15,61 @@ async def save_rarity_preference(user_id, rarity):
     )
 
 # Function to handle harem display based on rarity preference
-async def harem(update: Update, context: CallbackContext, page: int = 1) -> None:
+async def harem(update: Update, context: CallbackContext, page: int = 0) -> None:
     user_id = update.effective_user.id
-    user = await user_collection.find_one({'_id': user_id})
-    if user:
-        rarity_preference = user.get('rarity_preference', None)
-    else:
-        rarity_preference = None
 
-    # Find characters based on rarity preference
+    user = await user_collection.find_one({'_id': user_id})
+    if not user:
+        if update.message:
+            await update.message.reply_text('You have not guessed any characters yet.')
+        else:
+            await update.callback_query.edit_message_text('You have not guessed any characters yet.')
+        return
+
+    # Fetch characters with rarity preference
+    rarity_preference = user.get('rarity_preference', None)
     if rarity_preference:
-        characters = await collection.find({'user_id': user_id, 'rarity': rarity_preference}).to_list(None)
+        characters = [c async for c in collection.find({'user_id': user_id, 'rarity': rarity_preference})]
     else:
-        characters = await collection.find({'user_id': user_id}).to_list(None)
+        characters = [c async for c in collection.find({'user_id': user_id})]
 
     total_characters = len(characters)
-
-    # Check if there are characters for the selected rarity
     if total_characters == 0:
-        await update.message.reply_text(f"No characters found for rarity: {rarity_preference}")
+        if update.message:
+            await update.message.reply_text(f"No characters found for rarity: {rarity_preference}")
+        else:
+            await update.callback_query.edit_message_text(f"No characters found for rarity: {rarity_preference}")
         return
 
     # Pagination logic
-    characters_per_page = 5
+    characters_per_page = 15
     total_pages = math.ceil(total_characters / characters_per_page)
-    if page > total_pages:
-        page = 1
-    start_idx = (page - 1) * characters_per_page
+    if page < 0 or page >= total_pages:
+        page = 0
+    start_idx = page * characters_per_page
     end_idx = start_idx + characters_per_page
 
     # Create the harem message to display
-    harem_message = f"{update.effective_user.first_name}'s Harem - Page {page}/{total_pages}\n"
+    harem_message = f"<b>{escape(update.effective_user.first_name)}'s Harem - Page {page+1}/{total_pages}</b>\n"
     for character in characters[start_idx:end_idx]:
-        harem_message += f"𒄬 {character['id']} [{character['rarity']}] {character['name']} ×{character['count']}\n"
+        harem_message += f"𒄬 {character['id']} [{character['rarity']}] {escape(character['name'])} ×{character.get('count', 1)}\n"
         harem_message += "⚋" * 15 + "\n"
 
     # Inline buttons for pagination
     keyboard = [
         [
-            InlineKeyboardButton("◀️ Prev", callback_data=f"harem:{page - 1}"),
-            InlineKeyboardButton("Next ▶️", callback_data=f"harem:{page + 1}")
+            InlineKeyboardButton("⬅️ Prev", callback_data=f"harem:{page-1}:{user_id}") if page > 0 else None,
+            InlineKeyboardButton("Next ➡️", callback_data=f"harem:{page+1}:{user_id}") if page < total_pages - 1 else None
         ]
     ]
+    keyboard = [btn for btn in keyboard if btn is not None]  # Remove None entries
     reply_markup = InlineKeyboardMarkup(keyboard)
 
     # Display the harem message
     if update.callback_query:
-        await update.callback_query.edit_message_text(text=harem_message, reply_markup=reply_markup)
+        await update.callback_query.edit_message_text(text=harem_message, parse_mode='HTML', reply_markup=reply_markup)
     else:
-        await update.message.reply_text(text=harem_message, reply_markup=reply_markup)
+        await update.message.reply_text(text=harem_message, parse_mode='HTML', reply_markup=reply_markup)
 
 # Callback handler for /hmode, handling the rarity preference setting
 async def hmode_callback(update: Update, context: CallbackContext) -> None:
@@ -116,18 +124,17 @@ async def harem_callback(update: Update, context: CallbackContext) -> None:
     query = update.callback_query
     data = query.data
     try:
-        _, page = data.split(':')
+        _, page, user_id = data.split(':')
         await harem(update, context, int(page))
     except ValueError:
-        # Handle cases where the data split results in too many values
         await query.answer("Invalid page data!")
 
 # Command handler to start the /harem interface
 async def harem_command(update: Update, context: CallbackContext) -> None:
-    await harem(update, context, page=1)
+    await harem(update, context, page=0)
 
 # Add handlers to the application
 application.add_handler(CommandHandler('hmode', hmode))
-application.add_handler(CallbackQueryHandler(hmode_callback, pattern=r'hmode_'))
 application.add_handler(CommandHandler('harem', harem_command))
+application.add_handler(CallbackQueryHandler(hmode_callback, pattern=r'hmode_'))
 application.add_handler(CallbackQueryHandler(harem_callback, pattern=r'harem:'))
