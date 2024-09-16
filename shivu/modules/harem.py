@@ -86,7 +86,6 @@ async def harem(update: Update, context: CallbackContext, page=0, rarity_filter=
             if update.message:
                 await update.message.reply_photo(photo=fav_character['img_url'], parse_mode='HTML', caption=harem_message, reply_markup=reply_markup)
             else:
-                # Check if the message has a caption before editing
                 if update.callback_query.message.caption:
                     await update.callback_query.edit_message_caption(caption=harem_message, reply_markup=reply_markup, parse_mode='HTML')
                 else:
@@ -95,7 +94,6 @@ async def harem(update: Update, context: CallbackContext, page=0, rarity_filter=
             if update.message:
                 await update.message.reply_text(harem_message, parse_mode='HTML', reply_markup=reply_markup)
             else:
-                # Check if the message has a caption before editing
                 if update.callback_query.message.caption:
                     await update.callback_query.edit_message_caption(caption=harem_message, reply_markup=reply_markup, parse_mode='HTML')
                 else:
@@ -108,7 +106,6 @@ async def harem(update: Update, context: CallbackContext, page=0, rarity_filter=
                 if update.message:
                     await update.message.reply_photo(photo=random_character['img_url'], parse_mode='HTML', caption=harem_message, reply_markup=reply_markup)
                 else:
-                    # Check if the message has a caption before editing
                     if update.callback_query.message.caption:
                         await update.callback_query.edit_message_caption(caption=harem_message, reply_markup=reply_markup, parse_mode='HTML')
                     else:
@@ -117,7 +114,6 @@ async def harem(update: Update, context: CallbackContext, page=0, rarity_filter=
                 if update.message:
                     await update.message.reply_text(harem_message, parse_mode='HTML', reply_markup=reply_markup)
                 else:
-                    # Check if the message has a caption before editing
                     if update.callback_query.message.caption:
                         await update.callback_query.edit_message_caption(caption=harem_message, reply_markup=reply_markup, parse_mode='HTML')
                     else:
@@ -162,14 +158,14 @@ async def harem_callback(update: Update, context: CallbackContext) -> None:
                 {'$set': {'hmode': rarity_filter}},
                 upsert=True
             )
-            await query.edit_message_caption(
-                caption=f"Rarity Preference Set To\n{rarity_filter}\nHarem Interface: 🐉 Default",
-                reply_markup=query.message.reply_markup,
-                parse_mode='HTML'
-            )
+            caption = f"Rarity Preference Set To\n{rarity_filter}\nHarem Interface: 🐉 Default"
+            if query.message.caption:
+                await query.edit_message_caption(caption=caption, reply_markup=query.message.reply_markup, parse_mode='HTML')
+            else:
+                await query.edit_message_text(caption, reply_markup=query.message.reply_markup, parse_mode='HTML')
         await harem(update, context, page, rarity_filter)
 
-# Add handlers
+# Add handlers to the application
 application.add_handler(CommandHandler("harem", harem))
 application.add_handler(CommandHandler("hmode", hmode))
 application.add_handler(CallbackQueryHandler(harem_callback))
