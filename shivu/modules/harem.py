@@ -3,6 +3,10 @@ from telegram.ext import CommandHandler, CallbackContext, CallbackQueryHandler
 from shivu import collection, user_collection, application
 from html import escape
 import math
+import logging
+
+# Configure logging
+logging.basicConfig(level=logging.DEBUG)
 
 # Helper function to save rarity preference in the database
 async def save_rarity_preference(user_id, rarity):
@@ -27,8 +31,10 @@ async def harem(update: Update, context: CallbackContext, page: int = 0) -> None
     # Fetch characters with rarity preference
     rarity_preference = user.get('rarity_preference', None)
     if rarity_preference:
+        logging.debug(f"Fetching characters with rarity: {rarity_preference}")
         characters = [c async for c in collection.find({'user_id': user_id, 'rarity': rarity_preference})]
     else:
+        logging.debug("No rarity preference set, fetching all characters.")
         characters = [c async for c in collection.find({'user_id': user_id})]
 
     total_characters = len(characters)
