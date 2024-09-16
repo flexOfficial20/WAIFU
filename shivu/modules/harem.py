@@ -17,9 +17,10 @@ RARITY_OPTIONS = {
     "🔮 Limited Edition": "🔮 Limited Edition"
 }
 
-async def harem(update: Update, context: CallbackContext, page=0, rarity_filter=None) -> None:
+async def harem(update: Update, context: CallbackContext, page=0) -> None:
     user_id = update.effective_user.id
 
+    # Retrieve user data from the database
     user = await user_collection.find_one({'id': user_id})
     if not user:
         message = 'You Have Not Guessed any Characters Yet..'
@@ -29,7 +30,10 @@ async def harem(update: Update, context: CallbackContext, page=0, rarity_filter=
             await update.callback_query.edit_message_text(message)
         return
 
-    # Filter characters based on rarity if rarity_filter is provided
+    # Get user's rarity preference
+    rarity_filter = user.get('hmode')
+    
+    # Filter characters based on rarity preference
     characters = [char for char in user.get('characters', []) if not rarity_filter or char.get('rarity') == rarity_filter]
     
     if not characters:
@@ -75,9 +79,9 @@ async def harem(update: Update, context: CallbackContext, page=0, rarity_filter=
     if total_pages > 1:
         nav_buttons = []
         if page > 0:
-            nav_buttons.append(InlineKeyboardButton("⬅️", callback_data=f"harem:{page-1}:{user_id}:{rarity_filter or ''}"))
+            nav_buttons.append(InlineKeyboardButton("⬅️", callback_data=f"harem:{page-1}:{user_id}"))
         if page < total_pages - 1:
-            nav_buttons.append(InlineKeyboardButton("➡️", callback_data=f"harem:{page+1}:{user_id}:{rarity_filter or ''}"))
+            nav_buttons.append(InlineKeyboardButton("➡️", callback_data=f"harem:{page+1}:{user_id}"))
         keyboard.append(nav_buttons)
 
     reply_markup = InlineKeyboardMarkup(keyboard)
@@ -152,7 +156,13 @@ async def harem_callback(update: Update, context: CallbackContext) -> None:
     # Handle pagination and rarity filter
     if data.startswith('harem:'):
         try:
-            _, page, user_id, rarity_filter = data.split(':')
+            parts = data.split(':')
+            if len(parts) == 3:
+                page, user_id = parts[1], parts[2]
+                rarity_filter = None
+            elif len(parts) == 4:
+                _, page, user_id, rarity_filter = parts
+
             page = int(page)
             user_id = int(user_id)
             rarity_filter = rarity_filter or None
@@ -162,7 +172,7 @@ async def harem_callback(update: Update, context: CallbackContext) -> None:
                 return
 
             # Save user hmode preference in the database
-            if rarity_filter:
+            if rarity_filter is not None:
                 await user_collection.update_one(
                     {'id': user_id},
                     {'$set': {'hmode': rarity_filter}},
@@ -173,7 +183,7 @@ async def harem_callback(update: Update, context: CallbackContext) -> None:
                     reply_markup=query.message.reply_markup,
                     parse_mode='HTML'
                 )
-            await harem(update, context, page, rarity_filter)
+            await harem(update, context, page)
         except ValueError:
             await query.answer("Invalid data format", show_alert=True)
 
