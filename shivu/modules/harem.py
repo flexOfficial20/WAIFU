@@ -3,8 +3,6 @@ from telegram.ext import CommandHandler, CallbackContext, CallbackQueryHandler
 from shivu import collection, user_collection, application
 from html import escape
 import math
-import random
-from itertools import groupby
 
 # Helper function to save rarity preference in the database
 async def save_rarity_preference(user_id, rarity):
