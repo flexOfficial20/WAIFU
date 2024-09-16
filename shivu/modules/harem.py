@@ -1,11 +1,10 @@
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
-from telegram.ext import CommandHandler, CallbackContext, CallbackQueryHandler
+from telegram.ext import CommandHandler, CallbackContext, CallbackQueryHandler, Application
 from html import escape
 import math
 import random
 from itertools import groupby
-
-from shivu import collection, user_collection, application
+from shivu import collection, user_collection, db, application
 
 # Rarity levels
 RARITY_OPTIONS = {
@@ -17,6 +16,9 @@ RARITY_OPTIONS = {
     "💮 Exclusive": "💮 Exclusive",
     "🔮 Limited Edition": "🔮 Limited Edition"
 }
+
+# Dictionary to hold user rarity preferences
+hmode = {}
 
 async def harem(update: Update, context: CallbackContext, page=0, rarity_filter=None) -> None:
     user_id = update.effective_user.id
@@ -153,8 +155,24 @@ async def harem_callback(update: Update, context: CallbackContext) -> None:
             await query.answer("It's Not Your Harem", show_alert=True)
             return
 
+        # Save user hmode preference in the database
+        if rarity_filter:
+            await user_collection.update_one(
+                {'id': user_id},
+                {'$set': {'hmode': rarity_filter}},
+                upsert=True
+            )
+            await query.edit_message_caption(
+                caption=f"Rarity Preference Set To\n{rarity_filter}\nHarem Interface: 🐉 Default",
+                reply_markup=query.message.reply_markup,
+                parse_mode='HTML'
+            )
         await harem(update, context, page, rarity_filter)
 
-application.add_handler(CommandHandler("harem", harem))
-application.add_handler(CommandHandler("hmode", hmode))  # Use hmode command to handle rarity filtering
-application.add_handler(CallbackQueryHandler(harem_callback))
+# Add handlers and run the bot
+ 
+    app.add_handler(CommandHandler("harem", harem))
+    app.add_handler(CommandHandler("hmode", hmode))
+    app.add_handler(CallbackQueryHandler(harem_callback))
+
+    
