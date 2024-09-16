@@ -1,5 +1,5 @@
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
-from telegram.ext import CommandHandler, CallbackContext, CallbackQueryHandler, Application
+from telegram.ext import CommandHandler, CallbackContext, CallbackQueryHandler
 from html import escape
 import math
 import random
@@ -17,7 +17,7 @@ RARITY_OPTIONS = {
     "🔮 Limited Edition": "🔮 Limited Edition"
 }
 
-async def harem(update: Update, context: CallbackContext, page=0, rarity_filter=None) -> None:
+async def harem(update: Update, context: CallbackContext, page=0) -> None:
     user_id = update.effective_user.id
 
     user = await user_collection.find_one({'id': user_id})
@@ -29,7 +29,9 @@ async def harem(update: Update, context: CallbackContext, page=0, rarity_filter=
             await update.callback_query.edit_message_text(message)
         return
 
-    # Filter characters based on rarity if rarity_filter is provided
+    rarity_filter = user.get('hmode')  # Retrieve the user's selected rarity from the database
+
+    # Filter characters based on rarity if rarity_filter is set
     characters = sorted(user['characters'], key=lambda x: (x['anime'], x['id']))
     if rarity_filter:
         characters = [char for char in characters if char.get('rarity') == rarity_filter]
@@ -67,9 +69,9 @@ async def harem(update: Update, context: CallbackContext, page=0, rarity_filter=
     if total_pages > 1:
         nav_buttons = []
         if page > 0:
-            nav_buttons.append(InlineKeyboardButton("⬅️", callback_data=f"harem:{page-1}:{user_id}:{rarity_filter or ''}"))
+            nav_buttons.append(InlineKeyboardButton("⬅️", callback_data=f"harem:{page-1}:{user_id}"))
         if page < total_pages - 1:
-            nav_buttons.append(InlineKeyboardButton("➡️", callback_data=f"harem:{page+1}:{user_id}:{rarity_filter or ''}"))
+            nav_buttons.append(InlineKeyboardButton("➡️", callback_data=f"harem:{page+1}:{user_id}"))
         keyboard.append(nav_buttons)
 
     reply_markup = InlineKeyboardMarkup(keyboard)
@@ -152,9 +154,9 @@ async def harem_callback(update: Update, context: CallbackContext) -> None:
                 await query.edit_message_caption(caption=caption, reply_markup=query.message.reply_markup, parse_mode='HTML')
             else:
                 await query.edit_message_text(caption, reply_markup=query.message.reply_markup, parse_mode='HTML')
-        await harem(update, context, page, rarity_filter)
-
-# Add handlers to the application
+        
+        # Fetch updated characters and display
+        await harem(update, context, page)
 application.add_handler(CommandHandler("harem", harem))
 application.add_handler(CommandHandler("hmode", hmode))
 application.add_handler(CallbackQueryHandler(harem_callback))
