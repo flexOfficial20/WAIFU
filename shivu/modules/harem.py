@@ -1,15 +1,13 @@
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
-from telegram.ext import CommandHandler, CallbackContext, CallbackQueryHandler, Application
+from telegram.ext import CommandHandler, CallbackContext, CallbackQueryHandler
+from shivu import collection, user_collection, db, application
 from html import escape
 import math
-import random
 from itertools import groupby
-from shivu import collection, user_collection, db, application
-
 
 # Helper function to save rarity preference in the database
-def save_rarity_preference(user_id, rarity):
-    user_collection.update_one(
+async def save_rarity_preference(user_id, rarity):
+    await user_collection.update_one(
         {'_id': user_id},
         {'$set': {'rarity_preference': rarity}},
         upsert=True
@@ -18,16 +16,18 @@ def save_rarity_preference(user_id, rarity):
 # Function to handle harem display based on rarity preference
 async def harem(update: Update, context: CallbackContext, page: int = 1) -> None:
     user_id = update.effective_user.id
-    user = user_collection.find_one({'_id': user_id})
-    rarity_preference = user.get('rarity_preference', None)
+    user = await user_collection.find_one({'_id': user_id})
+    if user:
+        rarity_preference = user.get('rarity_preference', None)
+    else:
+        rarity_preference = None
 
     # Find characters based on rarity preference
     if rarity_preference:
-        characters = collection.find({'user_id': user_id, 'rarity': rarity_preference})
+        characters = await collection.find({'user_id': user_id, 'rarity': rarity_preference}).to_list(None)
     else:
-        characters = collection.find({'user_id': user_id})
+        characters = await collection.find({'user_id': user_id}).to_list(None)
 
-    characters = list(characters)
     total_characters = len(characters)
 
     # Pagination logic
@@ -81,7 +81,7 @@ async def hmode_callback(update: Update, context: CallbackContext) -> None:
 
         # Save the rarity preference for the user
         user_id = update.effective_user.id
-        save_rarity_preference(user_id, rarity)
+        await save_rarity_preference(user_id, rarity)
 
         # Respond with the chosen rarity and interface message
         message = f"Rarity Preference Set To\n {rarity}\nHarem Interface: 🐉 Default"
@@ -111,8 +111,12 @@ async def hmode(update: Update, context: CallbackContext) -> None:
 async def harem_callback(update: Update, context: CallbackContext) -> None:
     query = update.callback_query
     data = query.data
-    _, page = data.split(':')
-    await harem(update, context, int(page))
+    try:
+        _, page = data.split(':')
+        await harem(update, context, int(page))
+    except ValueError:
+        # Handle cases where the data split results in too many values
+        await query.answer("Invalid page data!")
 
 # Command handler to start the /harem interface
 async def harem_command(update: Update, context: CallbackContext) -> None:
