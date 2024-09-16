@@ -9,13 +9,13 @@ from shivu import collection, user_collection, application
 
 # Rarity levels
 RARITY_OPTIONS = {
-    "⚪ Common": 1,
-    "🟠 Rare": 2,
-    "🟡 Legendary": 3,
-    "🟢 Medium": 4,
-    "💠 Cosmic": 5,
-    "💮 Exclusive": 6,
-    "🔮 Limited Edition": 7
+    "⚪ Common": "⚪ Common",
+    "🟠 Rare": "🟠 Rare",
+    "🟡 Legendary": "🟡 Legendary",
+    "🟢 Medium": "🟢 Medium",
+    "💠 Cosmic": "💠 Cosmic",
+    "💮 Exclusive": "💮 Exclusive",
+    "🔮 Limited Edition": "🔮 Limited Edition"
 }
 
 async def harem(update: Update, context: CallbackContext, page=0, rarity_filter=None) -> None:
