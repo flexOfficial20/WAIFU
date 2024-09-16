@@ -1,10 +1,10 @@
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
-from telegram.ext import CommandHandler, CallbackContext, CallbackQueryHandler
+from telegram.ext import CommandHandler, CallbackContext, CallbackQueryHandler, Application
 from html import escape
 import math
 import random
 from itertools import groupby
-from shivu import collection, user_collection, application
+from shivu import collection, user_collection, db, application
 
 # Rarity levels
 RARITY_OPTIONS = {
@@ -74,55 +74,87 @@ async def harem(update: Update, context: CallbackContext, page=0, rarity_filter=
 
     reply_markup = InlineKeyboardMarkup(keyboard)
 
-    # Check if the user has a favorite character
-    if 'favorites' in user and user['favorites']:
-        fav_character_id = user['favorites'][0]
-        fav_character = next((c for c in user['characters'] if c['id'] == fav_character_id), None)
+    if update.message:
+        if 'favorites' in user and user['favorites']:
+            fav_character_id = user['favorites'][0]
+            fav_character = next((c for c in user['characters'] if c['id'] == fav_character_id), None)
 
-        if fav_character and 'img_url' in fav_character:
-            if update.message:
+            if fav_character and 'img_url' in fav_character:
                 await update.message.reply_photo(photo=fav_character['img_url'], parse_mode='HTML', caption=harem_message, reply_markup=reply_markup)
             else:
-                # Check if the message has a caption before editing
-                if update.callback_query.message.caption:
-                    await update.callback_query.edit_message_caption(caption=harem_message, reply_markup=reply_markup, parse_mode='HTML')
-                else:
-                    await update.callback_query.edit_message_text(harem_message, parse_mode='HTML', reply_markup=reply_markup)
-        else:
-            if update.message:
                 await update.message.reply_text(harem_message, parse_mode='HTML', reply_markup=reply_markup)
-            else:
-                # Check if the message has a caption before editing
-                if update.callback_query.message.caption:
-                    await update.callback_query.edit_message_caption(caption=harem_message, reply_markup=reply_markup, parse_mode='HTML')
-                else:
-                    await update.callback_query.edit_message_text(harem_message, parse_mode='HTML', reply_markup=reply_markup)
-    else:
-        if user['characters']:
-            random_character = random.choice(user['characters'])
-
-            if 'img_url' in random_character:
-                if update.message:
+        else:
+            if user['characters']:
+                random_character = random.choice(user['characters'])
+                if 'img_url' in random_character:
                     await update.message.reply_photo(photo=random_character['img_url'], parse_mode='HTML', caption=harem_message, reply_markup=reply_markup)
                 else:
-                    # Check if the message has a caption before editing
-                    if update.callback_query.message.caption:
-                        await update.callback_query.edit_message_caption(caption=harem_message, reply_markup=reply_markup, parse_mode='HTML')
-                    else:
-                        await update.callback_query.edit_message_text(harem_message, parse_mode='HTML', reply_markup=reply_markup)
-            else:
-                if update.message:
                     await update.message.reply_text(harem_message, parse_mode='HTML', reply_markup=reply_markup)
-                else:
-                    # Check if the message has a caption before editing
-                    if update.callback_query.message.caption:
-                        await update.callback_query.edit_message_caption(caption=harem_message, reply_markup=reply_markup, parse_mode='HTML')
-                    else:
-                        await update.callback_query.edit_message_text(harem_message, parse_mode='HTML', reply_markup=reply_markup)
-        else:
-            if update.message:
+            else:
                 await update.message.reply_text("Your List is Empty :)")
+    else:
+        if 'favorites' in user and user['favorites']:
+            fav_character_id = user['favorites'][0]
+            fav_character = next((c for c in user['characters'] if c['id'] == fav_character_id), None)
 
+            if fav_character and 'img_url' in fav_character:
+                await update.callback_query.edit_message_photo(photo=fav_character['img_url'], parse_mode='HTML', caption=harem_message, reply_markup=reply_markup)
+            else:
+                await update.callback_query.edit_message_text(harem_message, parse_mode='HTML', reply_markup=reply_markup)
+        else:
+            if user['characters']:
+                random_character = random.choice(user['characters'])
+                if 'img_url' in random_character:
+                    await update.callback_query.edit_message_photo(photo=random_character['img_url'], parse_mode='HTML', caption=harem_message, reply_markup=reply_markup)
+                else:
+                    await update.callback_query.edit_message_text(harem_message, parse_mode='HTML', reply_markup=reply_markup)
+            else:
+                await update.callback_query.edit_message_text("Your List is Empty :)", parse_mode='HTML')
 
-    application.add_handler(CommandHandler("harem", harem))
-    application.add_handler(CallbackQueryHandler(harem_callback))
+async def hmode(update: Update, context: CallbackContext) -> None:
+    user_id = update.effective_user.id
+    keyboard = [
+        [InlineKeyboardButton(rarity, callback_data=f"harem:0:{user_id}:{value}")]
+        for rarity, value in RARITY_OPTIONS.items()
+    ]
+    keyboard.append([InlineKeyboardButton("Clear Filter", callback_data=f"harem:0:{user_id}:")])
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    
+    if update.message:
+        await update.message.reply_text("Select Rarity to Filter By:", reply_markup=reply_markup)
+    else:
+        await update.callback_query.edit_message_text("Select Rarity to Filter By:", reply_markup=reply_markup)
+
+async def harem_callback(update: Update, context: CallbackContext) -> None:
+    query = update.callback_query
+    data = query.data
+
+    # Handle pagination and rarity filter
+    if data.startswith('harem:'):
+        _, page, user_id, rarity_filter = data.split(':')
+        page = int(page)
+        user_id = int(user_id)
+        rarity_filter = rarity_filter or None
+
+        if query.from_user.id != user_id:
+            await query.answer("It's Not Your Harem", show_alert=True)
+            return
+
+        # Save user hmode preference in the database
+        if rarity_filter:
+            await user_collection.update_one(
+                {'id': user_id},
+                {'$set': {'hmode': rarity_filter}},
+                upsert=True
+            )
+            caption = f"Rarity Preference Set To\n{rarity_filter}\nHarem Interface: 🐉 Default"
+            if query.message.caption:
+                await query.edit_message_caption(caption=caption, reply_markup=query.message.reply_markup, parse_mode='HTML')
+            else:
+                await query.edit_message_text(caption, reply_markup=query.message.reply_markup, parse_mode='HTML')
+        await harem(update, context, page, rarity_filter)
+
+# Add handlers to the application
+application.add_handler(CommandHandler("harem", harem))
+application.add_handler(CommandHandler("hmode", hmode))
+application.add_handler(CallbackQueryHandler(harem_callback))
