@@ -1,10 +1,8 @@
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
-from itertools import groupby
-import math
-from html import escape
-import random
-
 from telegram.ext import CommandHandler, CallbackContext, CallbackQueryHandler
+from html import escape
+import math
+import random
 
 from shivu import collection, user_collection, application
 
@@ -85,13 +83,19 @@ async def harem(update: Update, context: CallbackContext, page=0, rarity_filter=
             if update.message:
                 await update.message.reply_photo(photo=fav_character['img_url'], parse_mode='HTML', caption=harem_message, reply_markup=reply_markup)
             else:
-                if update.callback_query.message.caption != harem_message:
+                # Check if the message has a caption before editing
+                if update.callback_query.message.caption:
                     await update.callback_query.edit_message_caption(caption=harem_message, reply_markup=reply_markup, parse_mode='HTML')
+                else:
+                    await update.callback_query.edit_message_text(harem_message, parse_mode='HTML', reply_markup=reply_markup)
         else:
             if update.message:
                 await update.message.reply_text(harem_message, parse_mode='HTML', reply_markup=reply_markup)
             else:
-                if update.callback_query.message.text != harem_message:
+                # Check if the message has a caption before editing
+                if update.callback_query.message.caption:
+                    await update.callback_query.edit_message_caption(caption=harem_message, reply_markup=reply_markup, parse_mode='HTML')
+                else:
                     await update.callback_query.edit_message_text(harem_message, parse_mode='HTML', reply_markup=reply_markup)
     else:
         if user['characters']:
@@ -101,13 +105,19 @@ async def harem(update: Update, context: CallbackContext, page=0, rarity_filter=
                 if update.message:
                     await update.message.reply_photo(photo=random_character['img_url'], parse_mode='HTML', caption=harem_message, reply_markup=reply_markup)
                 else:
-                    if update.callback_query.message.caption != harem_message:
+                    # Check if the message has a caption before editing
+                    if update.callback_query.message.caption:
                         await update.callback_query.edit_message_caption(caption=harem_message, reply_markup=reply_markup, parse_mode='HTML')
+                    else:
+                        await update.callback_query.edit_message_text(harem_message, parse_mode='HTML', reply_markup=reply_markup)
             else:
                 if update.message:
                     await update.message.reply_text(harem_message, parse_mode='HTML', reply_markup=reply_markup)
                 else:
-                    if update.callback_query.message.text != harem_message:
+                    # Check if the message has a caption before editing
+                    if update.callback_query.message.caption:
+                        await update.callback_query.edit_message_caption(caption=harem_message, reply_markup=reply_markup, parse_mode='HTML')
+                    else:
                         await update.callback_query.edit_message_text(harem_message, parse_mode='HTML', reply_markup=reply_markup)
         else:
             if update.message:
@@ -116,7 +126,7 @@ async def harem(update: Update, context: CallbackContext, page=0, rarity_filter=
 async def hmode(update: Update, context: CallbackContext) -> None:
     user_id = update.effective_user.id
     keyboard = [
-        [InlineKeyboardButton(rarity, callback_data=f"harem:{0}:{user_id}:{value}")]
+        [InlineKeyboardButton(rarity, callback_data=f"harem:0:{user_id}:{value}")]
         for rarity, value in RARITY_OPTIONS.items()
     ]
     keyboard.append([InlineKeyboardButton("Clear Filter", callback_data=f"harem:0:{user_id}:")])
@@ -147,3 +157,4 @@ async def harem_callback(update: Update, context: CallbackContext) -> None:
 application.add_handler(CommandHandler("harem", harem))
 application.add_handler(CommandHandler("hmode", hmode))  # Use hmode command to handle rarity filtering
 application.add_handler(CallbackQueryHandler(harem_callback))
+
