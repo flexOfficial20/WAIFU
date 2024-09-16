@@ -179,13 +179,20 @@ async def harem_callback(update: Update, context: CallbackContext) -> None:
                     upsert=True
                 )
 
-                # Display the message with edit_message_text if no image or caption exists
-                caption_text = f"Rarity Preference Set To\n 🟡 {rarity_filter.capitalize()}\nHarem Interface: 🐉 Default"
-                
-                await query.edit_message_text(
-                    text=caption_text,
-                    parse_mode='HTML'
-                )
+                # Prepare the new message content
+                new_caption = f"Rarity Preference Set To\n 🟡 {rarity_filter.capitalize()}\nHarem Interface: 🐉 Default"
+
+                # Get the current message text
+                current_message = query.message.text
+
+                # Check if the new content is different from the current message
+                if current_message != new_caption:
+                    await query.edit_message_text(
+                        text=new_caption,
+                        parse_mode='HTML'
+                    )
+                else:
+                    await query.answer("Nothing to update, message already set.", show_alert=True)
 
         except ValueError:
             await query.answer("Invalid data format", show_alert=True)
