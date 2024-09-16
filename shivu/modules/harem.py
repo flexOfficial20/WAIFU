@@ -3,7 +3,6 @@ from telegram.ext import CommandHandler, CallbackContext, CallbackQueryHandler
 from shivu import collection, user_collection, db, application
 from html import escape
 import math
-from itertools import groupby
 
 # Helper function to save rarity preference in the database
 async def save_rarity_preference(user_id, rarity):
@@ -29,6 +28,11 @@ async def harem(update: Update, context: CallbackContext, page: int = 1) -> None
         characters = await collection.find({'user_id': user_id}).to_list(None)
 
     total_characters = len(characters)
+
+    # Check if there are characters for the selected rarity
+    if total_characters == 0:
+        await update.message.reply_text(f"No characters found for rarity: {rarity_preference}")
+        return
 
     # Pagination logic
     characters_per_page = 5
