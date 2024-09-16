@@ -178,12 +178,15 @@ async def harem_callback(update: Update, context: CallbackContext) -> None:
                     {'$set': {'hmode': rarity_filter}},
                     upsert=True
                 )
-                # Display only the rarity preference message with caption2
-                caption2 = f"Rarity Preference Set To\n 🟡 {rarity_filter.capitalize()}\nHarem Interface: 🐉 Default"
-                await query.edit_message_caption(
-                    caption=caption2,
+
+                # Display the message with edit_message_text if no image or caption exists
+                caption_text = f"Rarity Preference Set To\n 🟡 {rarity_filter.capitalize()}\nHarem Interface: 🐉 Default"
+                
+                await query.edit_message_text(
+                    text=caption_text,
                     parse_mode='HTML'
                 )
+
         except ValueError:
             await query.answer("Invalid data format", show_alert=True)
 
