@@ -6,11 +6,11 @@ from shivu import collection, user_collection, db, application
 
 # Helper function to update the user's rarity preference
 async def update_rarity_preference(user_id, rarity):
-    user = user_collection.find_one({'user_id': user_id})
+    user = await user_collection.find_one({'user_id': user_id})
     if user:
-        user_collection.update_one({'user_id': user_id}, {'$set': {'rarity_preference': rarity}})
+        await user_collection.update_one({'user_id': user_id}, {'$set': {'rarity_preference': rarity}})
     else:
-        user_collection.insert_one({'user_id': user_id, 'rarity_preference': rarity})
+        await user_collection.insert_one({'user_id': user_id, 'rarity_preference': rarity})
 
 # Callback function for handling rarity preference
 async def hmode_callback(update: Update, context: CallbackContext):
@@ -30,7 +30,7 @@ async def harem_callback(update: Update, context: CallbackContext):
     data = query.data.split(':')
     if len(data) == 3:
         page = int(data[1])
-        user_id = data[2]
+        user_id = int(data[2])
         rarity_filter = data[0]
         await harem(update, context, page, rarity_filter, user_id)
     else:
@@ -38,7 +38,7 @@ async def harem_callback(update: Update, context: CallbackContext):
 
 # Function to display harem characters based on rarity preference
 async def harem(update: Update, context: CallbackContext, page: int, rarity_filter: str, user_id: int):
-    user = user_collection.find_one({'user_id': user_id})
+    user = await user_collection.find_one({'user_id': user_id})
     rarity_preference = user.get('rarity_preference', '⚪ Common') if user else '⚪ Common'
     
     # Fetch characters with the selected rarity
@@ -84,7 +84,7 @@ async def harem(update: Update, context: CallbackContext, page: int, rarity_filt
 # Command handler for harem command
 async def harem_command(update: Update, context: CallbackContext):
     user_id = update.message.from_user.id
-    user = user_collection.find_one({'user_id': user_id})
+    user = await user_collection.find_one({'user_id': user_id})
     rarity_preference = user.get('rarity_preference', '⚪ Common') if user else '⚪ Common'
     await harem(update, context, page=1, rarity_filter=rarity_preference, user_id=user_id)
 
@@ -111,4 +111,5 @@ application.add_handler(CommandHandler('harem', harem_command))
 application.add_handler(CommandHandler('hmode', hmode_command))
 application.add_handler(CallbackQueryHandler(hmode_callback, pattern='^hmode:'))
 application.add_handler(CallbackQueryHandler(harem_callback, pattern='^harem:'))
+
 
