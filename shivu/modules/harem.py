@@ -12,7 +12,7 @@ from shivu import collection, user_collection, application
 # Define rarity mapping
 rarity_map = {1: "⚪ Common", 2: "🟠 Rare", 3: "🟡 Legendary", 4: "🟢 Medium", 5: "💠 Cosmic", 6: "💮 Exclusive", 7: "🔮 Limited Edition"}
 
-async def harem(update: Update, context: CallbackContext, page=0) -> None:
+async def harem(update: Update, context: CallbackContext, page=0, rarity_filter=None) -> None:
     user_id = update.effective_user.id
 
     user = await user_collection.find_one({'id': user_id})
@@ -23,7 +23,18 @@ async def harem(update: Update, context: CallbackContext, page=0) -> None:
             await update.callback_query.edit_message_text('You Have Not Guessed any Characters Yet..')
         return
 
-    characters = sorted(user['characters'], key=lambda x: (x['anime'], x['id']))
+    # Filter characters based on rarity if specified
+    if rarity_filter:
+        characters = [c for c in user['characters'] if rarity_map.get(c.get('rarity', 1)) == rarity_filter]
+    else:
+        characters = sorted(user['characters'], key=lambda x: (x['anime'], x['id']))
+
+    if not characters:
+        if update.message:
+            await update.message.reply_text(f"No characters found with rarity '{rarity_filter}'.")
+        else:
+            await update.callback_query.edit_message_text(f"No characters found with rarity '{rarity_filter}'")
+        return
 
     character_counts = {k: len(list(v)) for k, v in groupby(characters, key=lambda x: x['id'])}
 
@@ -62,9 +73,9 @@ async def harem(update: Update, context: CallbackContext, page=0) -> None:
     if total_pages > 1:
         nav_buttons = []
         if page > 0:
-            nav_buttons.append(InlineKeyboardButton("⬅️", callback_data=f"harem:{page-1}:{user_id}"))
+            nav_buttons.append(InlineKeyboardButton("⬅️", callback_data=f"harem:{page-1}:{user_id}:{rarity_filter}"))
         if page < total_pages - 1:
-            nav_buttons.append(InlineKeyboardButton("➡️", callback_data=f"harem:{page+1}:{user_id}"))
+            nav_buttons.append(InlineKeyboardButton("➡️", callback_data=f"harem:{page+1}:{user_id}:{rarity_filter}"))
         keyboard.append(nav_buttons)
 
     reply_markup = InlineKeyboardMarkup(keyboard)
@@ -110,7 +121,7 @@ async def harem_callback(update: Update, context: CallbackContext) -> None:
     query = update.callback_query
     data = query.data
 
-    _, page, user_id = data.split(':')
+    _, page, user_id, rarity_filter = data.split(':')
     page = int(page)
     user_id = int(user_id)
 
@@ -118,9 +129,10 @@ async def harem_callback(update: Update, context: CallbackContext) -> None:
         await query.answer("It's Not Your Harem", show_alert=True)
         return
 
-    await harem(update, context, page)
+    rarity_filter = rarity_filter if rarity_filter != "None" else None
+
+    await harem(update, context, page, rarity_filter)
 
 # Register the command and callback handlers
-application.add_handler(CommandHandler(["harem", "collection"], harem, block=False))
-harem_handler = CallbackQueryHandler(harem_callback, pattern='^harem', block=False)
-application.add_handler(harem_handler)
+application.add_handler(CommandHandler("harem", harem, block=False))
+application.add_handler(CallbackQueryHandler(harem_callback, pattern='^harem', block=False))
