@@ -10,7 +10,7 @@ from shivu import collection, user_collection, db, application
 # Fetch user collection from the database
 user_collection = db['user']
 
-async def handle_user_preference(update: Update, context: CallbackContext, rarity_filter=None) -> None:
+async def hmode(update: Update, context: CallbackContext, rarity_filter=None) -> None:
     query = update.callback_query
     user_id = query.from_user.id
     
