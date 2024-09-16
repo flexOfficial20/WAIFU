@@ -178,9 +178,10 @@ async def harem_callback(update: Update, context: CallbackContext) -> None:
                     {'$set': {'hmode': rarity_filter}},
                     upsert=True
                 )
-                # Display only the rarity preference message without any inline keyboard
-                await query.edit_message_text(
-                    text=f"Rarity Preference Set To\n{rarity_filter}\nHarem Interface: 🐉 Default",
+                # Display only the rarity preference message with caption2
+                caption2 = f"Rarity Preference Set To\n 🟡 {rarity_filter.capitalize()}\nHarem Interface: 🐉 Default"
+                await query.edit_message_caption(
+                    caption=caption2,
                     parse_mode='HTML'
                 )
         except ValueError:
