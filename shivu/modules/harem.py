@@ -6,6 +6,15 @@ import math
 import random
 from itertools import groupby
 
+# Helper function to save rarity preference in the database
+async def save_rarity_preference(user_id, rarity):
+    await user_collection.update_one(
+        {'id': user_id},
+        {'$set': {'rarity_preference': rarity}},
+        upsert=True
+    )
+
+# Function to handle harem display based on rarity preference
 async def harem(update: Update, context: CallbackContext, page: int = 0) -> None:
     user_id = update.effective_user.id
 
@@ -41,7 +50,7 @@ async def harem(update: Update, context: CallbackContext, page: int = 0) -> None
     unique_characters = list({character['id']: character for character in characters}.values())
 
     # Pagination
-    characters_per_page = 15
+    characters_per_page = 7
     total_pages = math.ceil(len(unique_characters) / characters_per_page)
     if page < 0 or page >= total_pages:
         page = 0
@@ -54,10 +63,12 @@ async def harem(update: Update, context: CallbackContext, page: int = 0) -> None
     current_grouped_characters = {k: list(v) for k, v in groupby(current_characters, key=lambda x: x['anime'])}
 
     for anime, chars in current_grouped_characters.items():
-        harem_message += f'\n<b>{anime} {len(chars)}/{await collection.count_documents({"anime": anime})}</b>\n'
+        harem_message += f'\n𖤍 {anime} {len(chars)}/{await collection.count_documents({"anime": anime})}\n'
+        harem_message += '⚋' * 15 + '\n'
         for character in chars:
             count = character_counts[character['id']]
-            harem_message += f'{character["id"]} {character["name"]} ×{count}\n'
+            harem_message += f'𒄬 {character["id"]} [{character["rarity"]}] {escape(character["name"])} ×{count}\n'
+        harem_message += '⚋' * 15 + '\n'
 
     # Inline buttons for pagination
     keyboard = [[InlineKeyboardButton(f"See Collection ({len(user['characters'])})", switch_inline_query_current_chat=f"collection.{user_id}")]]
@@ -105,6 +116,55 @@ async def harem(update: Update, context: CallbackContext, page: int = 0) -> None
             if update.message:
                 await update.message.reply_text("Your List is Empty :)")
 
+# Command handler for /hmode, presenting the rarity selection menu
+async def hmode(update: Update, context: CallbackContext) -> None:
+    keyboard = [
+        [
+            InlineKeyboardButton("⚪ Common", callback_data='hmode_common'),
+            InlineKeyboardButton("🟠 Rare", callback_data='hmode_rare'),
+        ],
+        [
+            InlineKeyboardButton("🟡 Legendary", callback_data='hmode_legendary'),
+            InlineKeyboardButton("🟢 Medium", callback_data='hmode_medium'),
+        ],
+        [
+            InlineKeyboardButton("💠 Cosmic", callback_data='hmode_cosmic'),
+            InlineKeyboardButton("💮 Exclusive", callback_data='hmode_exclusive'),
+            InlineKeyboardButton("🔮 Limited Edition", callback_data='hmode_limited')
+        ]
+    ]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    await update.message.reply_text("Select your rarity preference:", reply_markup=reply_markup)
+
+# Callback handler for hmode, handling the rarity preference setting
+async def hmode_callback(update: Update, context: CallbackContext) -> None:
+    query = update.callback_query
+    data = query.data
+
+    # Map callback data to rarity levels
+    rarity_map = {
+        'common': '⚪ Common',
+        'rare': '🟠 Rare',
+        'legendary': '🟡 Legendary',
+        'medium': '🟢 Medium',
+        'cosmic': '💠 Cosmic',
+        'exclusive': '💮 Exclusive',
+        'limited': '🔮 Limited Edition'
+    }
+
+    if data.startswith('hmode_'):
+        rarity_key = data.split('_')[1]
+        rarity = rarity_map.get(rarity_key)
+
+        # Save the rarity preference for the user
+        user_id = update.effective_user.id
+        await save_rarity_preference(user_id, rarity)
+
+        # Respond with the chosen rarity and interface message
+        message = f"Rarity Preference Set To\n {rarity}\nHarem Interface: 🐉 Default"
+        await query.edit_message_text(text=message)
+
+# Callback handler for harem pagination
 async def harem_callback(update: Update, context: CallbackContext) -> None:
     query = update.callback_query
     data = query.data
@@ -114,6 +174,12 @@ async def harem_callback(update: Update, context: CallbackContext) -> None:
     except ValueError:
         await query.answer("Invalid page data!")
 
-application.add_handler(CommandHandler(["harem", "collection"], harem, block=False))
-harem_handler = CallbackQueryHandler(harem_callback, pattern='^harem', block=False)
-application.add_handler(harem_handler)
+# Command handler to start the /harem interface
+async def harem_command(update: Update, context: CallbackContext) -> None:
+    await harem(update, context, page=0)
+
+# Add handlers to the application
+application.add_handler(CommandHandler('hmode', hmode))
+application.add_handler(CommandHandler('harem', harem_command))
+application.add_handler(CallbackQueryHandler(hmode_callback, pattern=r'hmode_'))
+application.add_handler(CallbackQueryHandler(harem_callback, pattern=r'harem:'))
