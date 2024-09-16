@@ -8,7 +8,18 @@ from telegram.ext import CommandHandler, CallbackContext, CallbackQueryHandler
 
 from shivu import collection, user_collection, application
 
-async def harem(update: Update, context: CallbackContext, page=0) -> None:
+# Rarity levels
+RARITY_OPTIONS = {
+    "⚪ Common": 1,
+    "🟠 Rare": 2,
+    "🟡 Legendary": 3,
+    "🟢 Medium": 4,
+    "💠 Cosmic": 5,
+    "💮 Exclusive": 6,
+    "🔮 Limited Edition": 7
+}
+
+async def harem(update: Update, context: CallbackContext, page=0, rarity_filter=None) -> None:
     user_id = update.effective_user.id
 
     user = await user_collection.find_one({'id': user_id})
@@ -20,11 +31,13 @@ async def harem(update: Update, context: CallbackContext, page=0) -> None:
             await update.callback_query.edit_message_text(message)
         return
 
-    # Sort characters by anime and id
+    # Filter characters based on rarity if rarity_filter is provided
     characters = sorted(user['characters'], key=lambda x: (x['anime'], x['id']))
+    if rarity_filter:
+        characters = [char for char in characters if char.get('rarity') == rarity_filter]
+
     character_counts = {k: len(list(v)) for k, v in groupby(characters, key=lambda x: x['id'])}
 
-    # Get unique characters
     unique_characters = list({character['id']: character for character in characters}.values())
     
     total_pages = math.ceil(len(unique_characters) / 7)  # 7 characters per page
@@ -56,10 +69,14 @@ async def harem(update: Update, context: CallbackContext, page=0) -> None:
     if total_pages > 1:
         nav_buttons = []
         if page > 0:
-            nav_buttons.append(InlineKeyboardButton("⬅️", callback_data=f"harem:{page-1}:{user_id}"))
+            nav_buttons.append(InlineKeyboardButton("⬅️", callback_data=f"harem:{page-1}:{user_id}:{rarity_filter or ''}"))
         if page < total_pages - 1:
-            nav_buttons.append(InlineKeyboardButton("➡️", callback_data=f"harem:{page+1}:{user_id}"))
+            nav_buttons.append(InlineKeyboardButton("➡️", callback_data=f"harem:{page+1}:{user_id}:{rarity_filter or ''}"))
         keyboard.append(nav_buttons)
+
+    # Rarity filter buttons
+    rarity_buttons = [InlineKeyboardButton(rarity, callback_data=f"hmode:{rarity_value}:{user_id}") for rarity, rarity_value in RARITY_OPTIONS.items()]
+    keyboard.append(rarity_buttons)
 
     reply_markup = InlineKeyboardMarkup(keyboard)
 
@@ -104,17 +121,32 @@ async def harem_callback(update: Update, context: CallbackContext) -> None:
     query = update.callback_query
     data = query.data
 
-    _, page, user_id = data.split(':')
+    # Handle pagination and rarity filter
+    if data.startswith('harem:'):
+        _, page, user_id, rarity_filter = data.split(':')
+        page = int(page)
+        user_id = int(user_id)
+        rarity_filter = rarity_filter or None
 
-    page = int(page)
-    user_id = int(user_id)
+        if query.from_user.id != user_id:
+            await query.answer("It's Not Your Harem", show_alert=True)
+            return
 
-    if query.from_user.id != user_id:
-        await query.answer("It's Not Your Harem", show_alert=True)
-        return
+        await harem(update, context, page, rarity_filter)
 
-    await harem(update, context, page)
+    # Handle rarity filter mode
+    elif data.startswith('hmode:'):
+        _, rarity_value, user_id = data.split(':')
+        rarity_value = int(rarity_value)
+        user_id = int(user_id)
 
-application.add_handler(CommandHandler(["harem", "collection"], harem, block=False))
-harem_handler = CallbackQueryHandler(harem_callback, pattern='^harem', block=False)
-application.add_handler(harem_handler)
+        if query.from_user.id != user_id:
+            await query.answer("It's Not Your Harem", show_alert=True)
+            return
+
+        rarity_filter = next((r for r, v in RARITY_OPTIONS.items() if v == rarity_value), "⚪ Common")
+        await harem(update, context, page=0, rarity_filter=rarity_filter)
+
+application.add_handler(CommandHandler("harem", harem))
+application.add_handler(CommandHandler("hmode", harem))  # Use harem command to handle rarity filtering
+application.add_handler(CallbackQueryHandler(harem_callback))
