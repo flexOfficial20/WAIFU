@@ -1,10 +1,8 @@
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
-from telegram.ext import CommandHandler, CallbackContext, CallbackQueryHandler
-from html import escape
+from telegram.ext import CallbackContext
 import math
 import random
-from itertools import groupby
-from shivu import collection, user_collection, db, application
+from shivu import collection, user_collection, application
 
 # Rarity levels
 RARITY_OPTIONS = {
@@ -162,6 +160,7 @@ async def harem_callback(update: Update, context: CallbackContext) -> None:
         
         # Fetch updated characters and display
         await harem(update, context, page)
+
 application.add_handler(CommandHandler("harem", harem))
 application.add_handler(CommandHandler("hmode", hmode))
 application.add_handler(CallbackQueryHandler(harem_callback))
