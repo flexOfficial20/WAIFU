@@ -42,7 +42,7 @@ async def harem(update: Update, context: CallbackContext, page: int, rarity_filt
     rarity_preference = user.get('rarity_preference', '⚪ Common') if user else '⚪ Common'
     
     # Fetch characters with the selected rarity
-    characters = list(collection.find({'rarity': rarity_filter}))
+    characters = [character async for character in collection.find({'rarity': rarity_filter})]
     total_characters = len(characters)
     characters_per_page = 10
     total_pages = math.ceil(total_characters / characters_per_page)
@@ -111,5 +111,4 @@ application.add_handler(CommandHandler('harem', harem_command))
 application.add_handler(CommandHandler('hmode', hmode_command))
 application.add_handler(CallbackQueryHandler(hmode_callback, pattern='^hmode:'))
 application.add_handler(CallbackQueryHandler(harem_callback, pattern='^harem:'))
-
 
