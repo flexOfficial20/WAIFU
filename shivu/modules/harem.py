@@ -3,7 +3,7 @@ from telegram.ext import CommandHandler, CallbackContext, CallbackQueryHandler
 from html import escape
 import math
 import random
-from itertools import groupby  # Import groupby
+from itertools import groupby
 
 from shivu import collection, user_collection, application
 
@@ -158,4 +158,3 @@ async def harem_callback(update: Update, context: CallbackContext) -> None:
 application.add_handler(CommandHandler("harem", harem))
 application.add_handler(CommandHandler("hmode", hmode))  # Use hmode command to handle rarity filtering
 application.add_handler(CallbackQueryHandler(harem_callback))
-
