@@ -69,9 +69,9 @@ async def harem(update: Update, context: CallbackContext, page=0) -> None:
     if total_pages > 1:
         nav_buttons = []
         if page > 0:
-            nav_buttons.append(InlineKeyboardButton("⬅️", callback_data=f"harem:{page-1}:{user_id}"))
+            nav_buttons.append(InlineKeyboardButton("⬅️", callback_data=f"harem:{page-1}:{user_id}:{rarity_filter}"))
         if page < total_pages - 1:
-            nav_buttons.append(InlineKeyboardButton("➡️", callback_data=f"harem:{page+1}:{user_id}"))
+            nav_buttons.append(InlineKeyboardButton("➡️", callback_data=f"harem:{page+1}:{user_id}:{rarity_filter}"))
         keyboard.append(nav_buttons)
 
     reply_markup = InlineKeyboardMarkup(keyboard)
@@ -133,7 +133,12 @@ async def harem_callback(update: Update, context: CallbackContext) -> None:
 
     # Handle pagination and rarity filter
     if data.startswith('harem:'):
-        _, page, user_id, rarity_filter = data.split(':')
+        parts = data.split(':')
+        if len(parts) < 4:
+            await query.answer("Invalid data format", show_alert=True)
+            return
+        
+        _, page, user_id, rarity_filter = parts
         page = int(page)
         user_id = int(user_id)
         rarity_filter = rarity_filter or None
