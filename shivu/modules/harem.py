@@ -36,7 +36,6 @@ async def harem(update: Update, context: CallbackContext, page=0, rarity_filter=
         characters = [char for char in characters if char.get('rarity') == rarity_filter]
 
     character_counts = {k: len(list(v)) for k, v in groupby(characters, key=lambda x: x['id'])}
-
     unique_characters = list({character['id']: character for character in characters}.values())
     
     total_pages = math.ceil(len(unique_characters) / 7)  # 7 characters per page
@@ -50,7 +49,8 @@ async def harem(update: Update, context: CallbackContext, page=0, rarity_filter=
     current_grouped_characters = {k: list(v) for k, v in groupby(current_characters, key=lambda x: x['anime'])}
 
     for anime, characters in current_grouped_characters.items():
-        harem_message += f'\n<b>𖤍 {anime} {len(characters)}/{await collection.count_documents({"anime": anime})}</b>\n'
+        total_anime_count = await collection.count_documents({"anime": anime})
+        harem_message += f'\n<b>𖤍 {anime} {len(characters)}/{total_anime_count}</b>\n'
         harem_message += "⚋" * 15 + "\n"
 
         for character in characters:
