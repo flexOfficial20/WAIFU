@@ -74,10 +74,6 @@ async def harem(update: Update, context: CallbackContext, page=0, rarity_filter=
             nav_buttons.append(InlineKeyboardButton("➡️", callback_data=f"harem:{page+1}:{user_id}:{rarity_filter or ''}"))
         keyboard.append(nav_buttons)
 
-    # Rarity filter buttons
-    rarity_buttons = [InlineKeyboardButton(rarity, callback_data=f"hmode:{rarity_value}:{user_id}") for rarity, rarity_value in RARITY_OPTIONS.items()]
-    keyboard.append(rarity_buttons)
-
     reply_markup = InlineKeyboardMarkup(keyboard)
 
     # Check if the user has a favorite character
@@ -117,6 +113,20 @@ async def harem(update: Update, context: CallbackContext, page=0, rarity_filter=
             if update.message:
                 await update.message.reply_text("Your List is Empty :)")
 
+async def hmode(update: Update, context: CallbackContext) -> None:
+    user_id = update.effective_user.id
+    keyboard = [
+        [InlineKeyboardButton(rarity, callback_data=f"harem:{0}:{user_id}:{value}")]
+        for rarity, value in RARITY_OPTIONS.items()
+    ]
+    keyboard.append([InlineKeyboardButton("Clear Filter", callback_data=f"harem:0:{user_id}:")])
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    
+    if update.message:
+        await update.message.reply_text("Select Rarity to Filter By:", reply_markup=reply_markup)
+    else:
+        await update.callback_query.edit_message_text("Select Rarity to Filter By:", reply_markup=reply_markup)
+
 async def harem_callback(update: Update, context: CallbackContext) -> None:
     query = update.callback_query
     data = query.data
@@ -134,19 +144,6 @@ async def harem_callback(update: Update, context: CallbackContext) -> None:
 
         await harem(update, context, page, rarity_filter)
 
-    # Handle rarity filter mode
-    elif data.startswith('hmode:'):
-        _, rarity_value, user_id = data.split(':')
-        rarity_value = int(rarity_value)
-        user_id = int(user_id)
-
-        if query.from_user.id != user_id:
-            await query.answer("It's Not Your Harem", show_alert=True)
-            return
-
-        rarity_filter = next((r for r, v in RARITY_OPTIONS.items() if v == rarity_value), "⚪ Common")
-        await harem(update, context, page=0, rarity_filter=rarity_filter)
-
 application.add_handler(CommandHandler("harem", harem))
-application.add_handler(CommandHandler("hmode", harem))  # Use harem command to handle rarity filtering
+application.add_handler(CommandHandler("hmode", hmode))  # Use hmode command to handle rarity filtering
 application.add_handler(CallbackQueryHandler(harem_callback))
