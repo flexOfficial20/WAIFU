@@ -4,7 +4,7 @@ from html import escape
 import math
 import random
 from itertools import groupby
-from shivu import collection, user_collection
+from shivu import collection, user_collection, application
 
 # Rarity levels
 RARITY_OPTIONS = {
@@ -123,6 +123,6 @@ async def harem(update: Update, context: CallbackContext, page=0, rarity_filter=
             if update.message:
                 await update.message.reply_text("Your List is Empty :)")
 
-def setup_handlers(application):
+
     application.add_handler(CommandHandler("harem", harem))
     application.add_handler(CallbackQueryHandler(harem_callback))
