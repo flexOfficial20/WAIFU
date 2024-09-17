@@ -46,7 +46,7 @@ async def ctop(update: Update, context: CallbackContext) -> None:
     ])
     leaderboard_data = await cursor.to_list(length=10)
 
-    leaderboard_message = "<b>TOP 10 USERS WHO GUESSED CHARACTERS MOST TIME IN THIS GROUP..</b>\n\n"
+    leaderboard_message = "<b>TOP 10 USERS WHO GUESSED CHARACTERS MOST TIMES IN THIS GROUP</b>\n\n"
 
     for i, user in enumerate(leaderboard_data, start=1):
         username = user.get('username', 'Unknown')
@@ -89,14 +89,11 @@ async def leaderboard(update: Update, context: CallbackContext) -> None:
     
     photo_url = random.choice(PHOTO_URL)
 
-    await update.message.reply_photo(photo=photo_url, caption=leaderboard_message, parse_mode='HTML') 
+    await update.message.reply_photo(photo=photo_url, caption=leaderboard_message, parse_mode='HTML')
 
-
-
-    
 
 async def stats(update: Update, context: CallbackContext) -> None:
-    if update.effective_user.id != 5932230962:
+    if update.effective_user.id != OWNER_ID:
         await update.message.reply_text("You are not authorized to use this command.")
         return
 
@@ -108,7 +105,7 @@ async def stats(update: Update, context: CallbackContext) -> None:
 
 async def send_users_document(update: Update, context: CallbackContext) -> None:
     if str(update.effective_user.id) not in SUDO_USERS:
-        update.message.reply_text('only For Sudo users...')
+        update.message.reply_text('Only for Sudo users...')
         return
 
     cursor = user_collection.find({})
@@ -126,7 +123,7 @@ async def send_users_document(update: Update, context: CallbackContext) -> None:
 
 async def send_groups_document(update: Update, context: CallbackContext) -> None:
     if str(update.effective_user.id) not in SUDO_USERS:
-        update.message.reply_text('Only For Sudo users...')
+        update.message.reply_text('Only for Sudo users...')
         return
 
     cursor = top_global_groups_collection.find({})
@@ -142,10 +139,10 @@ async def send_groups_document(update: Update, context: CallbackContext) -> None
     os.remove('groups.txt')
 
 
+# Add handlers for commands
 application.add_handler(CommandHandler('ctop', ctop, block=False))
 application.add_handler(CommandHandler('statss', stats, block=False))
 application.add_handler(CommandHandler('TopGroups', global_leaderboard, block=False))
 application.add_handler(CommandHandler('list', send_users_document, block=False))
 application.add_handler(CommandHandler('groups', send_groups_document, block=False))
 application.add_handler(CommandHandler('top', leaderboard, block=False))
-
