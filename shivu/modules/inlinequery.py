@@ -7,7 +7,7 @@ from pymongo import ASCENDING
 from telegram import Update, InlineQueryResultPhoto, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import InlineQueryHandler, CallbackContext, CallbackQueryHandler, CommandHandler
 from shivu import user_collection, collection, application, db, PHOTO_URL, group_user_totals_collection
-
+from html import escape
 # Create indexes for faster querying
 db.characters.create_index([('id', ASCENDING)])
 db.characters.create_index([('anime', ASCENDING)])
