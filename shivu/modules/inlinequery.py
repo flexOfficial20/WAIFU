@@ -1,11 +1,12 @@
 import re
 import time
-from html import escape
+import html
+import random
 from cachetools import TTLCache
 from pymongo import ASCENDING
 from telegram import Update, InlineQueryResultPhoto, InlineKeyboardButton, InlineKeyboardMarkup
-from telegram.ext import InlineQueryHandler, CallbackContext, CallbackQueryHandler
-from shivu import user_collection, collection, application, db
+from telegram.ext import InlineQueryHandler, CallbackContext, CallbackQueryHandler, CommandHandler
+from shivu import user_collection, collection, application, db, PHOTO_URL, group_user_totals_collection
 
 # Create indexes for faster querying
 db.characters.create_index([('id', ASCENDING)])
@@ -31,10 +32,7 @@ async def inlinequery(update: Update, context: CallbackContext) -> None:
                 user = user_collection_cache[user_id]
             else:
                 user = await user_collection.find_one({'id': int(user_id)})
-                if user:
-                    user_collection_cache[user_id] = user
-                else:
-                    user_collection_cache[user_id] = None
+                user_collection_cache[user_id] = user
 
             if user:
                 all_characters = list({v['id']: v for v in user['characters']}.values())
@@ -105,23 +103,21 @@ async def button_click(update: Update, context: CallbackContext) -> None:
     # Fetch global grabs for the character
     global_grabs = await user_collection.count_documents({'characters.id': character_id})
 
-    # Ensure message and chat details are available
-    if query.message and query.message.chat_id:
-        chat_id = query.message.chat_id
-
-        # Get the top 10 grabbers in the current chat
+    # Get the top 10 grabbers in the current chat
+    chat_id = query.message.chat_id if query.message else None
+    if chat_id:
         pipeline = [
-            {"$match": {"characters.id": character_id, "chat_id": chat_id}},
+            {"$match": {"characters.id": character_id, "group_id": chat_id}},
             {"$unwind": "$characters"},
             {"$match": {"characters.id": character_id}},
             {"$group": {"_id": "$id", "count": {"$sum": 1}, "name": {"$first": "$first_name"}}},
             {"$sort": {"count": -1}},
             {"$limit": 10}
         ]
-        top_grabbers = await user_collection.aggregate(pipeline).to_list(length=10)
+        top_grabbers = await user_collection.aggregate(pipeline).to_list(length=None)
 
         if top_grabbers:
-            top_grabbers_text = "\n".join([f"➥ {grabber['name']} x{grabber['count']}" for grabber in top_grabbers])
+            top_grabbers_text = "\n".join([f"{i+1}. <b>{html.escape(grabber['name'])}</b> ➾ <b>{grabber['count']}</b>" for i, grabber in enumerate(top_grabbers)])
         else:
             top_grabbers_text = "🔐 Nobody Has Grabbed It Yet In This Chat! Who Will Be The First?"
 
@@ -130,16 +126,42 @@ async def button_click(update: Update, context: CallbackContext) -> None:
                         f"🟡 Rarity: {query.message.caption.splitlines()[1].split(': ')[1]}\n"
                         f"🏖️ Anime: {query.message.caption.splitlines()[2].split(': ')[1]}\n"
                         f"🆔️ ID: {character_id}\n\n"
-                        f"🌎 Grabbed Globally: {global_grabs} Times\n\n"
-                        f"🎖️ Top 10 Grabbers Of This Character In This Chat:\n{top_grabbers_text}")
+                        f"🌎 Globally Grabbed: {global_grabs} Times\n\n"
+                        f"<b>Top 10 Grabbers In This Chat:</b>\n{top_grabbers_text}")
 
         await query.answer()
         await query.edit_message_caption(caption=full_caption, parse_mode='HTML')
     else:
         await query.answer("Unable to fetch chat details.")
-        # Optionally, you can delete or edit the original message to indicate the issue
-        if query.message:
-            await query.message.delete()
 
+async def ctop(update: Update, context: CallbackContext) -> None:
+    chat_id = update.effective_chat.id
+    chat_name = update.effective_chat.title or 'This Group'
+
+    cursor = group_user_totals_collection.aggregate([
+        {"$match": {"group_id": chat_id}},
+        {"$project": {"username": 1, "first_name": 1, "character_count": "$count"}},
+        {"$sort": {"character_count": -1}},
+        {"$limit": 10}
+    ])
+    leaderboard_data = await cursor.to_list(length=10)
+
+    leaderboard_message = f"<b>ᴛᴏᴘ 10 ɢʀᴀʙʙᴇʀs in {html.escape(chat_name)}</b>\n\n"
+
+    for i, user in enumerate(leaderboard_data, start=1):
+        username = user.get('username', 'Unknown')
+        first_name = html.escape(user.get('first_name', 'Unknown'))
+
+        if len(first_name) > 10:
+            first_name = first_name[:15] + '...'
+        character_count = user['character_count']
+        leaderboard_message += f'{i}. <b>{first_name}</b> ➾ <b>{character_count}</b>\n'
+
+    photo_url = random.choice(PHOTO_URL)
+
+    await update.message.reply_photo(photo=photo_url, caption=leaderboard_message, parse_mode='HTML')
+
+# Register the handlers
 application.add_handler(InlineQueryHandler(inlinequery, block=False))
 application.add_handler(CallbackQueryHandler(button_click, pattern='^grab_', block=False))
+application.add_handler(CommandHandler('ctop', ctop, block=False))
