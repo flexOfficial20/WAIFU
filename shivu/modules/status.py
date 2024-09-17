@@ -1,6 +1,9 @@
 from pyrogram import Client, filters
 from pyrogram.types import InlineKeyboardButton, InlineKeyboardMarkup
+from telegram import Update
+from telegram.ext import CommandHandler, CallbackContext, CallbackQueryHandler
 import asyncio
+import html
 from shivu import shivuu, collection, user_collection, group_user_totals_collection, db
 
 # MongoDB Collections
@@ -10,30 +13,6 @@ characters_collection = db['anime_characters_lol']
 
 async def get_user_collection():
     return await user_collection.find({}).to_list(length=None)
-
-async def get_user_rarity_counts(user_id):
-    rarity_counts = {
-        "Legendary": 0,
-        "Rare": 0,
-        "Medium": 0,
-        "Common": 0
-    }
-
-    user = await user_collection.find_one({'id': user_id})
-    if user:
-        characters = user.get('characters', [])
-        for char in characters:
-            rarity = char.get('rarity', 'Common')
-            if rarity == 'Legendary':
-                rarity_counts['Legendary'] += 1
-            elif rarity == 'Rare':
-                rarity_counts['Rare'] += 1
-            elif rarity == 'Medium':
-                rarity_counts['Medium'] += 1
-            elif rarity == 'Common':
-                rarity_counts['Common'] += 1
-
-    return rarity_counts
 
 async def get_progress_bar(user_waifus_count, total_waifus_count):
     current = user_waifus_count
@@ -47,8 +26,7 @@ async def get_progress_bar(user_waifus_count, total_waifus_count):
     empty_width = bar_width - filled_width
 
     progress_bar = "▰" * filled_width + "▱" * empty_width
-    status = f"{progress_bar}"
-    return status, progress_percent
+    return progress_bar, progress_percent
 
 async def get_chat_top(chat_id: int, user_id: int) -> int:
     pipeline = [
@@ -104,6 +82,53 @@ def get_rank(progress_percent):
 
     return "Grandmaster"  # If progress_percent is above 75%
 
+@shivuu.on_message(filters.command(["find"]))
+async def find_character(client, message):
+    try:
+        character_id = " ".join(message.text.split()[1:]).strip()
+
+        if not character_id:
+            await message.reply("Please provide a character ID.")
+            return
+
+        character = await characters_collection.find_one({"id": character_id})
+
+        if not character:
+            await message.reply("No character found with that ID.")
+            return
+
+        response_message = (
+            f"🧩 𝖶𝖺𝗂𝖿𝗎 𝖨𝗇𝖿𝗈𝗋𝗆𝖺𝗍𝗂𝗈𝗇:\n\n"
+            f"🪭 𝖭𝖺𝗆𝗲: {html.escape(character['name'])}\n"
+            f"⚕️ 𝖱𝖺𝗋𝗂𝗍𝗒: {html.escape(character['rarity'])}\n"
+            f"⚜️ 𝖠𝗇𝗂𝗆𝖾: {html.escape(character['anime'])}\n"
+            f"🪅 𝖨𝖳: {html.escape(character['id'])}\n\n"
+        )
+
+        if 'image_url' in character:
+            await message.reply_photo(
+                photo=character['image_url'],
+                caption=response_message
+            )
+        else:
+            await message.reply_text(response_message)
+
+        user_list_message = "✳️ 𝖧𝖾𝗋𝖾 𝗂𝗌 𝗍𝗁𝖾 𝗅𝗂𝗌𝗍 𝗈𝖿 𝗎𝗌𝖾𝗋𝗌 𝗐𝗁𝗈 𝗁𝖺𝗏𝖾 𝗍𝗁𝗂𝗌 𝖼𝗁𝖺𝗋𝖺𝒸𝗍𝖾𝗋 〽️:\n"
+        user_cursor = characters_collection.find({"id": character['id']})
+        user_list = []
+        async for user in user_cursor:
+            user_list.append(f"{user['username']} x{user['count']}")
+
+        if user_list:
+            user_list_message += "\n".join(user_list)
+        else:
+            user_list_message += "No users found."
+
+        await message.reply_text(user_list_message)
+
+    except Exception as e:
+        print(f"Error: {e}")
+
 @shivuu.on_message(filters.command(["status", "mystatus"]))
 async def send_grabber_status(client, message):
     try:
@@ -113,18 +138,16 @@ async def send_grabber_status(client, message):
             await asyncio.sleep(1)
             await loading_message.edit_text("🔄 Fetching Grabber Status" + "." * i)
 
-        user_collection_data = await get_user_collection()
-        user_collection_count = len(user_collection_data)
-
         user_id = message.from_user.id
         user = await user_collection.find_one({'id': user_id})
 
         if user:
-            total_count = len(user.get('characters', []))
+            user_characters = user.get('characters', [])
+            total_count = len(user_characters)
         else:
             total_count = 0
 
-        total_waifus_count = await collection.count_documents({})
+        total_waifus_count = await user_collection.count_documents({})
 
         chat_top = await get_chat_top(message.chat.id, user_id)
         global_top = await get_global_top(user_id)
@@ -134,17 +157,23 @@ async def send_grabber_status(client, message):
         current_xp = total_count
         next_level_xp = 100  # Adjust as needed
 
-        rarity_counts = await get_user_rarity_counts(user_id)
+        # Fetch user-specific rarity counts
+        rarity_counts = {
+            '⚪ Common': sum(1 for char in user_characters if char.get('rarity') == '⚪ Common'),
+            '🟢 Medium': sum(1 for char in user_characters if char.get('rarity') == '🟢 Medium'),
+            '🟠 Rare': sum(1 for char in user_characters if char.get('rarity') == '🟠 Rare'),
+            '🟡 Legendary': sum(1 for char in user_characters if char.get('rarity') == '🟡 Legendary'),
+            '💠 Cosmic': sum(1 for char in user_characters if char.get('rarity') == '💠 Cosmic'),
+            '💮 Exclusive': sum(1 for char in user_characters if char.get('rarity') == '💮 Exclusive'),
+            '🔮 Limited Edition': sum(1 for char in user_characters if char.get('rarity') == '🔮 Limited Edition')
+        }
 
-        # Fetch user profile photo
-        user_profile_photo = message.from_user.photo.big_file_id if message.from_user.photo else None
-
-        grabber_status = (
+        rarity_message = (
             f"╔════════ • ✧ • ════════╗\n"
             f"          ⛩  『𝗨𝘀𝗲𝗿 𝗣𝗿𝗼𝗳𝗶𝗹𝗲』  ⛩\n"
             f"══════════════════════\n"
-            f"➣ ❄️ 𝗡𝗮𝗺𝗲: `{message.from_user.first_name}` ┊𝗘 𝗠 𝗫 ™ 🐰\n"
-            f"➣ 🍀 𝗨𝘀𝗲𝗿 𝗜𝗗: `{message.from_user.id}`\n"
+            f"➣ ❄️ 𝗡𝗮𝗺𝗲: {message.from_user.full_name}\n"
+            f"➣ 🍀 𝗨𝘀𝗲𝗿 𝗜𝗗: {user_id}\n"
             f"━━━━━━━━━━━━━━━━━━━━━━\n"
             f"➣ 👾 𝗖𝗵𝗮𝗿𝗮𝗰𝘁𝗲𝗿𝘀 𝗖𝗼𝗹𝗹𝗲𝗰𝘁𝗲𝗱: {total_count}\n"
             f"➣ 💯 𝗣𝗲𝗿𝗰𝗲𝗻𝘁𝗮𝗀𝗲: {progress_percent:.2f}%\n"
@@ -158,32 +187,16 @@ async def send_grabber_status(client, message):
             f"🌍 𝗚𝗹𝗼𝗯𝗮𝗹 𝗧𝗼𝗽: {global_top}\n"
             f"━━━━━━━━━━━━━━━━━━━━━━\n"
             f"               ✨ 𝐊𝐞𝐞𝐩 𝐂𝐨𝐥𝐥𝐞𝐜𝐭𝐢𝐧𝐠 ✨\n"
-            f"╚════════ • ☆ • ════════╝"
-        )
-
-        rarity_status = (
+            f"╚════════ • ☆ • ════════╝\n\n"
             f"╔════════ • ✧ • ════════╗\n"
-            f"├─➩ 🟡 Rarity: Legendary: {rarity_counts['Legendary']}\n"
-            f"├─➩ 🟠 Rarity: Rare: {rarity_counts['Rare']}\n"
-            f"├─➩ 🔴 Rarity: Medium: {rarity_counts['Medium']}\n"
-            f"├─➩ 🔵 Rarity: Common: {rarity_counts['Common']}\n"
+            f"├─➩ 🟡 Rarity: Legendary: {rarity_counts.get('🟡 Legendary', 0)}\n"
+            f"├─➩ 🟠 Rarity: Rare: {rarity_counts.get('🟠 Rare', 0)}\n"
+            f"├─➩ 🔴 Rarity: Medium: {rarity_counts.get('🟢 Medium', 0)}\n"
+            f"├─➩ 🔵 Rarity: Common: {rarity_counts.get('⚪ Common', 0)}\n"
             f"╚════════ • ☆ • ════════╝"
         )
 
-        if user_profile_photo:
-            # Download and send user profile photo
-            user_photo = await client.download_media(user_profile_photo)
-            await message.reply_photo(photo=user_photo, caption=grabber_status, reply_markup=None)
-        else:
-            await message.reply_text(grabber_status, reply_markup=None)
-
-        await message.reply_text(rarity_status)
-
-        await loading_message.delete()
+        await loading_message.edit_text(rarity_message)
 
     except Exception as e:
         print(f"Error: {e}")
-
-# Add other handlers and start the bot
-# For example:
-# application.add_handler(CommandHandler('status', send_grabber_status))
