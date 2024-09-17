@@ -31,7 +31,10 @@ async def inlinequery(update: Update, context: CallbackContext) -> None:
                 user = user_collection_cache[user_id]
             else:
                 user = await user_collection.find_one({'id': int(user_id)})
-                user_collection_cache[user_id] = user
+                if user:
+                    user_collection_cache[user_id] = user
+                else:
+                    user_collection_cache[user_id] = None
 
             if user:
                 all_characters = list({v['id']: v for v in user['characters']}.values())
@@ -113,7 +116,7 @@ async def button_click(update: Update, context: CallbackContext) -> None:
             {"$sort": {"count": -1}},
             {"$limit": 10}
         ]
-        top_grabbers = await user_collection.aggregate(pipeline).to_list(length=None)
+        top_grabbers = await user_collection.aggregate(pipeline).to_list(length=10)
 
         if top_grabbers:
             top_grabbers_text = "\n".join([f"➥ {grabber['name']} x{grabber['count']}" for grabber in top_grabbers])
@@ -126,7 +129,7 @@ async def button_click(update: Update, context: CallbackContext) -> None:
                         f"🏖️ Anime: {query.message.caption.splitlines()[2].split(': ')[1]}\n"
                         f"🆔️ ID: {character_id}\n\n"
                         f"🌎 Grabbed Globally: {global_grabs} Times\n\n"
-                        f"🎖️ Top 10 Grabbers Of This Waifu In This Chat:\n{top_grabbers_text}")
+                        f"🎖️ Top 10 Grabbers Of This Character In This Chat:\n{top_grabbers_text}")
 
         await query.answer()
         await query.edit_message_caption(caption=full_caption, parse_mode='HTML')
