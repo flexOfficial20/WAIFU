@@ -2,7 +2,7 @@ from pyrogram import Client, filters
 from pyrogram.types import InputMediaPhoto
 import asyncio
 import html
-from shivu import shivuu, collection, user_collection, group_user_totals_collection, db
+from shivu import shivuu, collection, user_collection, group_user_totals_collection, db, application as aap
 
 # MongoDB Collections
 groups_collection = db['top_global_groups']
