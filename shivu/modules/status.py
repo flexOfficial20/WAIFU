@@ -1,7 +1,6 @@
 from pyrogram import Client, filters
 from pyrogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 import asyncio
-import html
 from shivu import shivuu, collection, user_collection, group_user_totals_collection, db
 
 # MongoDB Collections
@@ -11,6 +10,30 @@ characters_collection = db['anime_characters_lol']
 
 async def get_user_collection():
     return await user_collection.find({}).to_list(length=None)
+
+async def get_user_rarity_counts(user_id):
+    rarity_counts = {
+        "Legendary": 0,
+        "Rare": 0,
+        "Medium": 0,
+        "Common": 0
+    }
+
+    user = await user_collection.find_one({'id': user_id})
+    if user:
+        characters = user.get('characters', [])
+        for char in characters:
+            rarity = char.get('rarity', 'Common')
+            if rarity == 'Legendary':
+                rarity_counts['Legendary'] += 1
+            elif rarity == 'Rare':
+                rarity_counts['Rare'] += 1
+            elif rarity == 'Medium':
+                rarity_counts['Medium'] += 1
+            elif rarity == 'Common':
+                rarity_counts['Common'] += 1
+
+    return rarity_counts
 
 async def get_progress_bar(user_waifus_count, total_waifus_count):
     current = user_waifus_count
@@ -111,6 +134,8 @@ async def send_grabber_status(client, message):
         current_xp = total_count
         next_level_xp = 100  # Adjust as needed
 
+        rarity_counts = await get_user_rarity_counts(user_id)
+
         # Fetch user profile photo
         user_profile_photo = message.from_user.photo.big_file_id if message.from_user.photo else None
 
@@ -138,10 +163,10 @@ async def send_grabber_status(client, message):
 
         rarity_status = (
             f"╔════════ • ✧ • ════════╗\n"
-            f"├─➩ 🟡 Rarity: Legendary: 65\n"
-            f"├─➩ 🟠 Rarity: Rare: 120\n"
-            f"├─➩ 🔴 Rarity: Medium: 185\n"
-            f"├─➩ 🔵 Rarity: Common: 236\n"
+            f"├─➩ 🟡 Rarity: Legendary: {rarity_counts['Legendary']}\n"
+            f"├─➩ 🟠 Rarity: Rare: {rarity_counts['Rare']}\n"
+            f"├─➩ 🔴 Rarity: Medium: {rarity_counts['Medium']}\n"
+            f"├─➩ 🔵 Rarity: Common: {rarity_counts['Common']}\n"
             f"╚════════ • ☆ • ════════╝"
         )
 
