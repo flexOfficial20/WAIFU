@@ -20,7 +20,7 @@ async def global_leaderboard(update: Update, context: CallbackContext) -> None:
     ])
     leaderboard_data = await cursor.to_list(length=10)
 
-    leaderboard_message = "<b>TOP 10 GROUPS WHO GUESSED MOST CHARACTERS</b>\n\n"
+    leaderboard_message = "<b>ᴛᴏᴘ 10 ɢʀᴀʙʙᴇʀs</b>\n\n"
 
     for i, group in enumerate(leaderboard_data, start=1):
         group_name = html.escape(group.get('group_name', 'Unknown'))
@@ -37,6 +37,7 @@ async def global_leaderboard(update: Update, context: CallbackContext) -> None:
 
 async def ctop(update: Update, context: CallbackContext) -> None:
     chat_id = update.effective_chat.id
+    chat_name = update.effective_chat.title or 'This Group'
 
     cursor = group_user_totals_collection.aggregate([
         {"$match": {"group_id": chat_id}},
@@ -46,7 +47,7 @@ async def ctop(update: Update, context: CallbackContext) -> None:
     ])
     leaderboard_data = await cursor.to_list(length=10)
 
-    leaderboard_message = "<b>TOP 10 USERS WHO GUESSED CHARACTERS MOST TIMES IN THIS GROUP</b>\n\n"
+    leaderboard_message = f"<b>ᴛᴏᴘ 10 ɢʀᴀʙʙᴇʀs in {html.escape(chat_name)}</b>\n\n"
 
     for i, user in enumerate(leaderboard_data, start=1):
         username = user.get('username', 'Unknown')
@@ -55,11 +56,13 @@ async def ctop(update: Update, context: CallbackContext) -> None:
         if len(first_name) > 10:
             first_name = first_name[:15] + '...'
         character_count = user['character_count']
-        leaderboard_message += f'{i}. <a href="https://t.me/{username}"><b>{first_name}</b></a> ➾ <b>{character_count}</b>\n'
+        leaderboard_message += f'{i}. <b>{first_name}</b> ➾ <b>{character_count}</b>\n'
 
     photo_url = random.choice(PHOTO_URL)
 
     await update.message.reply_photo(photo=photo_url, caption=leaderboard_message, parse_mode='HTML')
+
+
 
 
 async def leaderboard(update: Update, context: CallbackContext) -> None:
@@ -76,7 +79,7 @@ async def leaderboard(update: Update, context: CallbackContext) -> None:
     leaderboard_data = leaderboard_data[:10]
 
     # Prepare the leaderboard message
-    leaderboard_message = "<b>TOP 10 USERS WITH MOST CHARACTERS</b>\n\n"
+    leaderboard_message = "<b>ᴛᴏᴘ 10 ᴜsᴇʀs ᴡɪᴛʜ ᴍᴏsᴛ ᴄʜᴀʀᴀᴄᴛᴇʀs</b>\n\n"
 
     for i, user in enumerate(leaderboard_data, start=1):
         username = user.get('username', 'Unknown')
@@ -85,7 +88,7 @@ async def leaderboard(update: Update, context: CallbackContext) -> None:
         if len(first_name) > 10:
             first_name = first_name[:15] + '...'
         character_count = len(user.get('characters', []))  # Calculate character count
-        leaderboard_message += f'{i}. <a href="https://t.me/{username}"><b>{first_name}</b></a> ➾ <b>{character_count}</b>\n'
+        leaderboard_message += f'{i}. <b>{first_name}</b> ➾ <b>{character_count}</b>\n'
     
     photo_url = random.choice(PHOTO_URL)
 
