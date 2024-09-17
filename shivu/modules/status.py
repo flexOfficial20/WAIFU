@@ -1,14 +1,13 @@
 from pyrogram import Client, filters
-from pymongo import MongoClient
+from pyrogram.types import InputMediaPhoto
 import asyncio
+import html
+from shivu import shivuu, collection, user_collection, group_user_totals_collection, db
 
-# Initialize Pyrogram Client
-app = Client("my_bot")
-
-# MongoDB setup
-mongo_client = MongoClient("mongodb://localhost:27017/")
-db = mongo_client['mydatabase']
-user_collection = db['user']
+# MongoDB Collections
+groups_collection = db['top_global_groups']
+users_collection = db['user_collection_lmaoooo']
+characters_collection = db['anime_characters_lol']
 
 async def get_chat_top(chat_id, user_id):
     # Function to fetch chat top
