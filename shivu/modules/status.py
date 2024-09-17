@@ -218,8 +218,5 @@ async def send_grabber_status(client, message):
         print(f"Error: {e}")
 
 # Add command handlers to the bot
-client = Client("my_bot")
 
-client.add_handler(CommandHandler("find", find_character))
-client.add_handler(CommandHandler("status", send_grabber_status))
-client.run()
+
