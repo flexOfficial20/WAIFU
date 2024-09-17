@@ -1,5 +1,5 @@
 from pyrogram import Client, filters
-from pyrogram.types import InlineKeyboardButton, InlineKeyboardMarkup
+from pyrogram.types import InputMediaPhoto
 from telegram import Update
 from telegram.ext import CommandHandler, CallbackContext, CallbackQueryHandler
 import asyncio
@@ -56,28 +56,41 @@ async def get_global_top(user_id: int) -> int:
 
 def get_rank(progress_percent):
     ranks = [
-        (5, "Bronze 1"),
-        (10, "Bronze 2"),
-        (15, "Bronze 3"),
-        (20, "Gold 1"),
-        (25, "Gold 2"),
-        (30, "Gold 3"),
-        (35, "Platinum 1"),
-        (40, "Platinum 2"),
-        (45, "Platinum 3"),
-        (50, "Platinum 4"),
-        (55, "Diamond 1"),
-        (60, "Diamond 2"),
-        (65, "Diamond 3"),
-        (70, "Diamond 4"),
-        (75, "Master"),
+        (5, "Bronze I"),
+        (10, "Bronze II"),
+        (15, "Bronze III"),
+        (20, "Silver I"),
+        (25, "Silver II"),
+        (30, "Silver III"),
+        (35, "Gold I"),
+        (40, "Gold II"),
+        (45, "Gold III"),
+        (50, "Gold IV"),
+        (55, "Platinum I"),
+        (60, "Platinum II"),
+        (65, "Platinum III"),
+        (70, "Platinum IV"),
+        (75, "Diamond I"),
+        (80, "Diamond II"),
+        (85, "Diamond III"),
+        (90, "Diamond IV"),
+        (95, "Heroic I"),
+        (100, "Heroic II"),
+        (105, "Heroic III"),
+        (110, "Elite Heroic"),
+        (115, "Master"),
+        (120, "Crown"),
+        (125, "Grandmaster I"),
+        (130, "Grandmaster II"),
+        (135, "Grandmaster III"),
+        (140, "Conqueror")
     ]
 
     for percent, rank in ranks:
         if progress_percent <= percent:
             return rank
 
-    return "Grandmaster"  # If progress_percent is above 75%
+    return "Conqueror"  # If progress_percent is above 140%
 
 @shivuu.on_message(filters.command(["find"]))
 async def find_character(client, message):
@@ -165,6 +178,8 @@ async def send_grabber_status(client, message):
             '🔮 Limited Edition': sum(1 for char in user_characters if char.get('rarity') == '🔮 Limited Edition')
         }
 
+        profile_image_url = user.get('profile_image_url', None)
+
         rarity_message = (
             f"╔════════ • ✧ • ════════╗\n"
             f"          ⛩  『𝗨𝘀𝗲𝗿 𝗣𝗿𝗼𝗳𝗶𝗹𝗲』  ⛩\n"
@@ -176,8 +191,9 @@ async def send_grabber_status(client, message):
             f"➣ 💯 𝗣𝗲𝗿𝗰𝗲𝗻𝘁𝗮𝗀𝗲: {progress_percent:.2f}%\n"
             f"━━━━━━━━━━━━━━━━━━━━━━\n"
             f"➣ 🏅 𝗥𝗮𝗻𝗄: {rank}\n"
-            f"➣ 📈 𝗣𝗿𝗼𝗀𝗋𝗲𝘀𝘀 𝗕𝗮𝗋:\n"
-            f"{progress_bar} ({current_xp}/{next_level_xp} XP)\n"
+            f"➣ 📈 𝗣𝗿𝗼𝗴𝗿𝗲𝘀𝘀 𝗕𝗮𝗿:\n"
+            f"[{progress_bar}]\n"
+            f"({current_xp}/{next_level_xp} XP)\n"
             f"━━━━━━━━━━━━━━━━━━━━━━\n"
             f"🏆 𝗖𝗵𝗮𝘁 𝗧𝗼𝗽: {chat_top}\n"
             f"🌍 𝗚𝗹𝗼𝗯𝗮𝗹 𝗧𝗼𝗽: {global_top}\n"
@@ -192,8 +208,18 @@ async def send_grabber_status(client, message):
             f"╚════════ • ☆ • ════════╝"
         )
 
-        await loading_message.edit_text(rarity_message)
+        if profile_image_url:
+            await loading_message.edit_text(rarity_message)
+            await client.send_photo(message.chat.id, profile_image_url, caption=rarity_message)
+        else:
+            await loading_message.edit_text(rarity_message)
 
     except Exception as e:
         print(f"Error: {e}")
 
+# Add command handlers to the bot
+client = Client("my_bot")
+
+client.add_handler(CommandHandler("find", find_character))
+client.add_handler(CommandHandler("status", send_grabber_status))
+client.run()
