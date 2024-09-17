@@ -15,11 +15,8 @@ async def get_user_collection():
     return await user_collection.find({}).to_list(length=None)
 
 async def get_progress_bar(user_waifus_count, total_waifus_count):
-    current = user_waifus_count
-    total = total_waifus_count
-    bar_width = 10
-
-    progress = current / total if total != 0 else 0
+    bar_width = 20  # Define the width of the progress bar
+    progress = min(user_waifus_count / total_waifus_count, 1)  # Ensure it doesn't exceed 100%
     progress_percent = progress * 100
 
     filled_width = int(progress * bar_width)
@@ -113,7 +110,7 @@ async def find_character(client, message):
         else:
             await message.reply_text(response_message)
 
-        user_list_message = "✳️ 𝖧𝖾𝗋𝖾 𝗂𝗌 𝗍𝗁𝖾 𝗅𝗂𝗌𝗍 𝗈𝖿 𝗎𝗌𝖾𝗋𝗌 𝗐𝗁𝗈 𝗁𝖺𝗏𝖾 𝗍𝗁𝗂𝗌 𝖼𝗁𝖺𝗋𝖺𝒸𝗍𝖾𝗋 〽️:\n"
+        user_list_message = "✳️ 𝖧𝖾𝗋𝖾 𝗂𝗌 𝗍𝗁𝖾 𝗅𝗂𝗌𝗍 𝗈𝖿 𝗎𝗌𝖾𝗋𝗌 𝗐𝗁𝗈 𝗁𝖺𝗏𝖾 𝗍𝗁𝖾𝗂𝓈 𝖼𝗁𝖺𝗋𝖺𝒸𝗍𝖾𝗋 〽️:\n"
         user_cursor = characters_collection.find({"id": character['id']})
         user_list = []
         async for user in user_cursor:
@@ -155,7 +152,7 @@ async def send_grabber_status(client, message):
         progress_bar, progress_percent = await get_progress_bar(total_count, total_waifus_count)
         rank = get_rank(progress_percent)
         current_xp = total_count
-        next_level_xp = 100  # Adjust as needed
+        next_level_xp = min(100, total_waifus_count)  # Ensure XP does not exceed total character count
 
         # Fetch user-specific rarity counts
         rarity_counts = {
@@ -179,9 +176,8 @@ async def send_grabber_status(client, message):
             f"➣ 💯 𝗣𝗲𝗿𝗰𝗲𝗻𝘁𝗮𝗀𝗲: {progress_percent:.2f}%\n"
             f"━━━━━━━━━━━━━━━━━━━━━━\n"
             f"➣ 🏅 𝗥𝗮𝗻𝗄: {rank}\n"
-            f"➣ 📈 𝗣𝗿𝗼𝗴𝗿𝗲𝘀𝘀 𝗕𝗮𝗿:\n"
-            f"[{progress_bar}]\n"
-            f"({current_xp}/{next_level_xp} XP)\n"
+            f"➣ 📈 𝗣𝗿𝗼𝗀𝗋𝗲𝘀𝘀 𝗕𝗮𝗋:\n"
+            f"{progress_bar} ({current_xp}/{next_level_xp} XP)\n"
             f"━━━━━━━━━━━━━━━━━━━━━━\n"
             f"🏆 𝗖𝗵𝗮𝘁 𝗧𝗼𝗽: {chat_top}\n"
             f"🌍 𝗚𝗹𝗼𝗯𝗮𝗹 𝗧𝗼𝗽: {global_top}\n"
@@ -200,3 +196,4 @@ async def send_grabber_status(client, message):
 
     except Exception as e:
         print(f"Error: {e}")
+
