@@ -1,3 +1,9 @@
+from pyrogram import Client, filters
+from pyrogram.types import InputMediaPhoto
+import asyncio
+import html
+from shivu import shivuu, collection, user_collection, group_user_totals_collection, db
+
 @shivuu.on_message(filters.command(["status", "mystatus"]))
 async def send_grabber_status(client, message):
     try:
