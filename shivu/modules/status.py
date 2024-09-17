@@ -1,19 +1,13 @@
 from pyrogram import Client, filters
 from pyrogram.types import InlineKeyboardButton, InlineKeyboardMarkup
-from telegram import Update
-from telegram.ext import CommandHandler, CallbackContext, CallbackQueryHandler
 import asyncio
 import html
-import random
 from shivu import shivuu, collection, user_collection, group_user_totals_collection, db
 
 # MongoDB Collections
 groups_collection = db['top_global_groups']
 users_collection = db['user_collection_lmaoooo']
 characters_collection = db['anime_characters_lol']
-
-# For demonstration, add PHOTO_URL list as placeholder
-PHOTO_URL = ["https://example.com/photo1.jpg", "https://example.com/photo2.jpg"]
 
 async def get_user_collection():
     return await user_collection.find({}).to_list(length=None)
@@ -87,53 +81,6 @@ def get_rank(progress_percent):
 
     return "Grandmaster"  # If progress_percent is above 75%
 
-@shivuu.on_message(filters.command(["find"]))
-async def find_character(client, message):
-    try:
-        character_id = " ".join(message.text.split()[1:]).strip()
-
-        if not character_id:
-            await message.reply("Please provide a character ID.")
-            return
-
-        character = await characters_collection.find_one({"id": character_id})
-
-        if not character:
-            await message.reply("No character found with that ID.")
-            return
-
-        response_message = (
-            f"🧩 𝖶𝖺𝗂𝖿𝗎 𝖨𝗇𝖿𝗈𝗋𝗆𝖺𝗍𝗂𝗈𝗇:\n\n"
-            f"🪭 𝖭𝖺𝗆𝗲: {html.escape(character['name'])}\n"
-            f"⚕️ 𝖱𝖺𝗋𝗂𝗍𝗒: {html.escape(character['rarity'])}\n"
-            f"⚜️ 𝖠𝗇𝗂𝗆𝖾: {html.escape(character['anime'])}\n"
-            f"🪅 𝖨𝖳: {html.escape(character['id'])}\n\n"
-        )
-
-        if 'image_url' in character:
-            await message.reply_photo(
-                photo=character['image_url'],
-                caption=response_message
-            )
-        else:
-            await message.reply_text(response_message)
-
-        user_list_message = "✳️ 𝖧𝖾𝗋𝖾 𝗂𝗌 𝗍𝗁𝖾 𝗅𝗂𝗌𝗍 𝗈𝖿 𝗎𝗌𝖾𝗋𝗌 𝗐𝗁𝗈 𝗁𝖺𝗏𝖾 𝗍𝗁𝗂𝗌 𝖼𝗁𝖺𝗋𝖺𝑐𝗍𝖾𝗋 〽️:\n"
-        user_cursor = characters_collection.find({"id": character['id']})
-        user_list = []
-        async for user in user_cursor:
-            user_list.append(f"{user['username']} x{user['count']}")
-
-        if user_list:
-            user_list_message += "\n".join(user_list)
-        else:
-            user_list_message += "No users found."
-
-        await message.reply_text(user_list_message)
-
-    except Exception as e:
-        print(f"Error: {e}")
-
 @shivuu.on_message(filters.command(["status", "mystatus"]))
 async def send_grabber_status(client, message):
     try:
@@ -171,7 +118,7 @@ async def send_grabber_status(client, message):
             f"╔════════ • ✧ • ════════╗\n"
             f"          ⛩  『𝗨𝘀𝗲𝗿 𝗣𝗿𝗼𝗳𝗶𝗹𝗲』  ⛩\n"
             f"══════════════════════\n"
-            f"➣ ❄️ 𝗡𝗮𝗺𝗲: `{message.from_user.first_name}`\n"
+            f"➣ ❄️ 𝗡𝗮𝗺𝗲: `{message.from_user.first_name}` ┊𝗘 𝗠 𝗫 ™ 🐰\n"
             f"➣ 🍀 𝗨𝘀𝗲𝗿 𝗜𝗗: `{message.from_user.id}`\n"
             f"━━━━━━━━━━━━━━━━━━━━━━\n"
             f"➣ 👾 𝗖𝗵𝗮𝗿𝗮𝗰𝘁𝗲𝗿𝘀 𝗖𝗼𝗹𝗹𝗲𝗰𝘁𝗲𝗱: {total_count}\n"
@@ -189,17 +136,23 @@ async def send_grabber_status(client, message):
             f"╚════════ • ☆ • ════════╝"
         )
 
-        keyboard = [
-            [InlineKeyboardButton("Waifus 💫", callback_data='show_rarity')]
-        ]
-        reply_markup = InlineKeyboardMarkup(keyboard)
+        rarity_status = (
+            f"╔════════ • ✧ • ════════╗\n"
+            f"├─➩ 🟡 Rarity: Legendary: 65\n"
+            f"├─➩ 🟠 Rarity: Rare: 120\n"
+            f"├─➩ 🔴 Rarity: Medium: 185\n"
+            f"├─➩ 🔵 Rarity: Common: 236\n"
+            f"╚════════ • ☆ • ════════╝"
+        )
 
         if user_profile_photo:
             # Download and send user profile photo
             user_photo = await client.download_media(user_profile_photo)
-            await message.reply_photo(photo=user_photo, caption=grabber_status, reply_markup=reply_markup)
+            await message.reply_photo(photo=user_photo, caption=grabber_status, reply_markup=None)
         else:
-            await message.reply_text(grabber_status, reply_markup=reply_markup)
+            await message.reply_text(grabber_status, reply_markup=None)
+
+        await message.reply_text(rarity_status)
 
         await loading_message.delete()
 
@@ -208,6 +161,4 @@ async def send_grabber_status(client, message):
 
 # Add other handlers and start the bot
 # For example:
-# application.add_handler(CommandHandler('find', find_character))
 # application.add_handler(CommandHandler('status', send_grabber_status))
-# application.add_handler(CallbackQueryHandler(button))
