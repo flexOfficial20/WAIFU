@@ -164,25 +164,8 @@ async def send_grabber_status(client, message):
         current_xp = total_count
         next_level_xp = 100  # Adjust as needed
 
-        # Count characters by rarity
-        rarity_counts = {rarity: 0 for rarity in ['⚪ Common', '🟢 Medium', '🟠 Rare', '🟡 Legendary', '💠 Cosmic', '💮 Exclusive', '🔮 Limited Edition']}
-        
-        if user:
-            for character in user.get('characters', []):
-                rarity = character.get('rarity', 'Unknown')
-                if rarity in rarity_counts:
-                    rarity_counts[rarity] += 1
-
-        rarity_message = (
-            f"⚜️ Characters Count Sorted By Rarity\n\n"
-            f"⚪ Common: {rarity_counts['⚪ Common']} characters\n"
-            f"🟢 Medium: {rarity_counts['🟢 Medium']} characters\n"
-            f"🟠 Rare: {rarity_counts['🟠 Rare']} characters\n"
-            f"🟡 Legendary: {rarity_counts['🟡 Legendary']} characters\n"
-            f"💠 Cosmic: {rarity_counts['💠 Cosmic']} characters\n"
-            f"💮 Exclusive: {rarity_counts['💮 Exclusive']} characters\n"
-            f"🔮 Limited Edition: {rarity_counts['🔮 Limited Edition']} characters\n"
-        )
+        # Fetch user profile photo
+        user_profile_photo = message.from_user.photo.big_file_id if message.from_user.photo else None
 
         grabber_status = (
             f"╔════════ • ✧ • ════════╗\n"
@@ -211,16 +194,20 @@ async def send_grabber_status(client, message):
         ]
         reply_markup = InlineKeyboardMarkup(keyboard)
 
-        user_photo = random.choice(PHOTO_URL)
-
-        await client.send_photo(
-            chat_id=message.chat.id,
-            photo=user_photo,
-            caption=f"{grabber_status}\n\n{rarity_message}",
-            reply_markup=reply_markup
-        )
+        if user_profile_photo:
+            # Download and send user profile photo
+            user_photo = await client.download_media(user_profile_photo)
+            await message.reply_photo(photo=user_photo, caption=grabber_status, reply_markup=reply_markup)
+        else:
+            await message.reply_text(grabber_status, reply_markup=reply_markup)
 
         await loading_message.delete()
 
     except Exception as e:
         print(f"Error: {e}")
+
+# Add other handlers and start the bot
+# For example:
+# application.add_handler(CommandHandler('find', find_character))
+# application.add_handler(CommandHandler('status', send_grabber_status))
+# application.add_handler(CallbackQueryHandler(button))
