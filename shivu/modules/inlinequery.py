@@ -8,6 +8,7 @@ from telegram import Update, InlineQueryResultPhoto, InlineKeyboardButton, Inlin
 from telegram.ext import InlineQueryHandler, CallbackContext, CallbackQueryHandler, CommandHandler
 from shivu import user_collection, collection, application, db, PHOTO_URL, group_user_totals_collection
 from html import escape
+
 # Create indexes for faster querying
 db.characters.create_index([('id', ASCENDING)])
 db.characters.create_index([('anime', ASCENDING)])
@@ -114,7 +115,7 @@ async def button_click(update: Update, context: CallbackContext) -> None:
             {"$sort": {"count": -1}},
             {"$limit": 10}
         ]
-        top_grabbers = await user_collection.aggregate(pipeline).to_list(length=None)
+        top_grabbers = await user_collection.aggregate(pipeline).to_list(length=10)
 
         if top_grabbers:
             top_grabbers_text = "\n".join([f"{i+1}. <b>{html.escape(grabber['name'])}</b> ➾ <b>{grabber['count']}</b>" for i, grabber in enumerate(top_grabbers)])
@@ -129,10 +130,10 @@ async def button_click(update: Update, context: CallbackContext) -> None:
                         f"🌎 Globally Grabbed: {global_grabs} Times\n\n"
                         f"<b>Top 10 Grabbers In This Chat:</b>\n{top_grabbers_text}")
 
-        await query.answer()
         await query.edit_message_caption(caption=full_caption, parse_mode='HTML')
     else:
-        await query.answer("Unable to fetch chat details.")
+        # Handle the situation if chat details cannot be fetched
+        pass
 
 async def ctop(update: Update, context: CallbackContext) -> None:
     chat_id = update.effective_chat.id
