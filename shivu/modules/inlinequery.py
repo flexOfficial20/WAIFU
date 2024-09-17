@@ -105,9 +105,11 @@ async def button_click(update: Update, context: CallbackContext) -> None:
     # Fetch global grabs for the character
     global_grabs = await user_collection.count_documents({'characters.id': character_id})
 
-    # Get the top 10 grabbers in the current chat
-    chat_id = query.message.chat_id if query.message else None
-    if chat_id:
+    # Ensure message and chat details are available
+    if query.message and query.message.chat_id:
+        chat_id = query.message.chat_id
+
+        # Get the top 10 grabbers in the current chat
         pipeline = [
             {"$match": {"characters.id": character_id, "chat_id": chat_id}},
             {"$unwind": "$characters"},
@@ -135,7 +137,9 @@ async def button_click(update: Update, context: CallbackContext) -> None:
         await query.edit_message_caption(caption=full_caption, parse_mode='HTML')
     else:
         await query.answer("Unable to fetch chat details.")
+        # Optionally, you can delete or edit the original message to indicate the issue
+        if query.message:
+            await query.message.delete()
 
-# Register the handlers
 application.add_handler(InlineQueryHandler(inlinequery, block=False))
 application.add_handler(CallbackQueryHandler(button_click, pattern='^grab_', block=False))
