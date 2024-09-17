@@ -1,172 +1,56 @@
 from pyrogram import Client, filters
-from pyrogram.types import InputMediaPhoto
+from pymongo import MongoClient
 import asyncio
-import html
-from shivu import shivuu, collection, user_collection, group_user_totals_collection, db
 
-# MongoDB Collections
-groups_collection = db['top_global_groups']
-users_collection = db['user_collection_lmaoooo']
-characters_collection = db['anime_characters_lol']
+# Initialize Pyrogram Client
+app = Client("my_bot")
 
-async def get_user_collection():
-    return await user_collection.find({}).to_list(length=None)
-
-async def get_user_rarity_counts(user_id):
-    rarity_counts = {
-        "Legendary": 0,
-        "Rare": 0,
-        "Medium": 0,
-        "Common": 0,
-        "Cosmic": 0,
-        "Exclusive": 0,
-        "Limited Edition": 0
-    }
-
-    user = await user_collection.find_one({'id': user_id})
-    if user:
-        characters = user.get('characters', [])
-        for char in characters:
-            rarity = char.get('rarity', 'Common')
-            if rarity in rarity_counts:
-                rarity_counts[rarity] += 1
-
-    return rarity_counts
-
-async def get_progress_bar(user_waifus_count, total_waifus_count):
-    bar_width = 20  # Define the width of the progress bar
-    progress = min(user_waifus_count / total_waifus_count, 1)  # Ensure it doesn't exceed 100%
-    progress_percent = min(progress * 100, 100)  # Ensure it doesn't exceed 100%
-
-    filled_width = int(progress * bar_width)
-    empty_width = bar_width - filled_width
-
-    progress_bar = "▰" * filled_width + "▱" * empty_width
-    return progress_bar, progress_percent
+# MongoDB setup
+mongo_client = MongoClient("mongodb://localhost:27017/")
+db = mongo_client['mydatabase']
+user_collection = db['user']
 
 async def get_chat_top(chat_id, user_id):
-    try:
-        pipeline = [
-            {"$match": {"group_id": chat_id}},
-            {"$sort": {"count": -1}},
-            {"$limit": 10}
-        ]
-        cursor = group_user_totals_collection.aggregate(pipeline)
-        leaderboard_data = await cursor.to_list(length=None)
-        
-        for i, user in enumerate(leaderboard_data, start=1):
-            if user.get('user_id') == user_id:
-                return i
-        
-        return 'N/A'
-    except Exception as e:
-        print(f"Error getting chat top: {e}")
-        return 'N/A'
+    # Function to fetch chat top
+    # Placeholder for actual implementation
+    return 3
 
 async def get_global_top(user_id):
-    try:
-        pipeline = [
-            {"$project": {"id": 1, "characters_count": {"$size": {"$ifNull": ["$characters", []]}}}},
-            {"$sort": {"characters_count": -1}}
-        ]
-        cursor = user_collection.aggregate(pipeline)
-        leaderboard_data = await cursor.to_list(length=None)
-        
-        for i, user in enumerate(leaderboard_data, start=1):
-            if user.get('id') == user_id:
-                return i
-        
-        return 'N/A'
-    except Exception as e:
-        print(f"Error getting global top: {e}")
-        return 'N/A'
+    # Function to fetch global top
+    # Placeholder for actual implementation
+    return 1
+
+async def get_progress_bar(current_xp, next_level_xp):
+    # Function to calculate the progress bar
+    progress_percent = (current_xp / next_level_xp) * 100
+    progress_bar = "▰" * int(progress_percent // 6) + "▱" * (16 - int(progress_percent // 6))
+    return progress_bar, progress_percent
 
 def get_rank(progress_percent):
-    ranks = [
-        (5, "Bronze I"),
-        (10, "Bronze II"),
-        (15, "Bronze III"),
-        (20, "Silver I"),
-        (25, "Silver II"),
-        (30, "Silver III"),
-        (35, "Gold I"),
-        (40, "Gold II"),
-        (45, "Gold III"),
-        (50, "Gold IV"),
-        (55, "Platinum I"),
-        (60, "Platinum II"),
-        (65, "Platinum III"),
-        (70, "Platinum IV"),
-        (75, "Diamond I"),
-        (80, "Diamond II"),
-        (85, "Diamond III"),
-        (90, "Diamond IV"),
-        (95, "Heroic I"),
-        (100, "Heroic II"),
-        (105, "Heroic III"),
-        (110, "Elite Heroic"),
-        (115, "Master"),
-        (120, "Crown"),
-        (130, "Grandmaster I"),
-        (140, "Grandmaster II"),
-        (150, "Grandmaster III"),
-        (160, "Conqueror")
-    ]
+    # Function to determine the rank based on progress percent
+    if progress_percent >= 100:
+        return "Heroic I"
+    elif progress_percent >= 80:
+        return "Heroic II"
+    elif progress_percent >= 60:
+        return "Elite"
+    elif progress_percent >= 40:
+        return "Advanced"
+    else:
+        return "Beginner"
 
-    for percent, rank in ranks:
-        if progress_percent <= percent:
-            return rank
+async def get_user_rarity_counts(user_id):
+    # Function to fetch rarity counts for the user
+    user = await user_collection.find_one({'id': user_id})
+    rarity_counts = user.get('rarity_counts', {})
+    return {
+        'Legendary': rarity_counts.get('Legendary', 0),
+        'Rare': rarity_counts.get('Rare', 0),
+        'Medium': rarity_counts.get('Medium', 0),
+        'Common': rarity_counts.get('Common', 0)
+    }
 
-    return "Conqueror"  # If progress_percent is above 160%
-
-@shivuu.on_message(filters.command(["find"]))
-async def find_character(client, message):
-    try:
-        character_id = " ".join(message.text.split()[1:]).strip()
-
-        if not character_id:
-            await message.reply("Please provide a character ID.")
-            return
-
-        character = await characters_collection.find_one({"id": character_id})
-
-        if not character:
-            await message.reply("No character found with that ID.")
-            return
-
-        response_message = (
-            f"🧩 𝖶𝖺𝗂𝖿𝗎 𝖨𝗇𝖿𝗈𝗋𝗆𝖺𝗍𝗂𝗈𝗇:\n\n"
-            f"🪭 𝖭𝖺𝗆𝗲: {html.escape(character['name'])}\n"
-            f"⚕️ 𝖱𝖺𝗋𝗂𝗍𝗒: {html.escape(character['rarity'])}\n"
-            f"⚜️ 𝖠𝗇𝗂𝗆𝖾: {html.escape(character['anime'])}\n"
-            f"🪅 𝖨𝖳: {html.escape(character['id'])}\n\n"
-        )
-
-        if 'image_url' in character:
-            await message.reply_photo(
-                photo=character['image_url'],
-                caption=response_message
-            )
-        else:
-            await message.reply_text(response_message)
-
-        user_list_message = "✳️ 𝖧𝖾𝗋𝖾 𝗂𝗌 𝗍𝗁𝖾 𝗅𝗂𝗌𝗍 𝗈𝖿 𝗎𝗌𝖾𝗋𝗌 𝗐𝗁𝗈 𝗁𝖺𝗏𝖾 𝗍𝗁𝾀𝗂𝓈 𝖼𝗁𝖺𝗋𝖺𝒸𝗍𝖾𝗋 〽️:\n"
-        user_cursor = characters_collection.find({"id": character['id']})
-        user_list = []
-        async for user in user_cursor:
-            user_list.append(f"{user['username']} x{user['count']}")
-
-        if user_list:
-            user_list_message += "\n".join(user_list)
-        else:
-            user_list_message += "No users found."
-
-        await message.reply_text(user_list_message)
-
-    except Exception as e:
-        print(f"Error: {e}")
-
-@shivuu.on_message(filters.command(["status", "mystatus"]))
+@app.on_message(filters.command(["status", "mystatus"]))
 async def send_grabber_status(client, message):
     try:
         loading_message = await message.reply("🔄 Fetching Grabber Status...")
@@ -194,7 +78,6 @@ async def send_grabber_status(client, message):
         current_xp = total_count
         next_level_xp = min(100, total_waifus_count)  # Ensure XP does not exceed total character count
 
-        # Fetch user-specific rarity counts
         rarity_counts = await get_user_rarity_counts(user_id)
 
         profile_image_url = user.get('profile_image_url', None)
@@ -236,3 +119,4 @@ async def send_grabber_status(client, message):
     except Exception as e:
         print(f"Error: {e}")
 
+# Start the Pyrogram Client
