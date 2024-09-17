@@ -1,13 +1,13 @@
 import re
 import time
-import html
-import random
+from html import escape
 from cachetools import TTLCache
 from pymongo import ASCENDING
-from telegram import Update, InlineQueryResultPhoto, InlineKeyboardButton, InlineKeyboardMarkup
-from telegram.ext import InlineQueryHandler, CallbackContext, CallbackQueryHandler, CommandHandler
-from shivu import user_collection, collection, application, db, PHOTO_URL, group_user_totals_collection
-from html import escape
+from telegram import Update, InlineQueryResultPhoto
+from telegram.ext import InlineQueryHandler, CallbackContext
+from telegram import InlineKeyboardButton, InlineKeyboardMarkup
+
+from shivu import user_collection, collection, application, db
 
 # Create indexes for faster querying
 db.characters.create_index([('id', ASCENDING)])
@@ -55,8 +55,8 @@ async def inlinequery(update: Update, context: CallbackContext) -> None:
                 all_characters = list(await collection.find({}).to_list(length=None))
                 all_characters_cache['all_characters'] = all_characters
 
-    characters = all_characters[offset:offset + 20]
-    next_offset = str(offset + 20) if len(all_characters) > offset + 20 else None
+    characters = all_characters[offset:offset + 15]
+    next_offset = str(offset + 15) if len(all_characters) > offset + 15 else None
 
     results = []
     for character in characters:
@@ -65,8 +65,6 @@ async def inlinequery(update: Update, context: CallbackContext) -> None:
         if query.startswith('collection.'):
             user_character_count = sum(c['id'] == character['id'] for c in user['characters'])
             user_anime_characters = sum(c['anime'] == character['anime'] for c in user['characters'])
-            anime_characters = await collection.count_documents({'anime': character['anime']})
-            
             caption = (f"🌸 Name: {escape(character['name'])}\n"
                        f"🟡 Rarity: {character['rarity']}\n"
                        f"🏖️ Anime: {escape(character['anime'])}\n"
@@ -78,11 +76,6 @@ async def inlinequery(update: Update, context: CallbackContext) -> None:
                        f"🏖️ Anime: {escape(character['anime'])}\n"
                        f"🆔️ ID: {character['id']}\n\n"
                        f"Globally Guessed: {global_count} Times...")
-
-        # Add inline button for grabbing information
-        buttons = InlineKeyboardMarkup(
-            [[InlineKeyboardButton("🌎 Grab Stats", callback_data=f"grab_{character['id']}")]]
-        )
 
         results.append(
             InlineQueryResultPhoto(
@@ -90,79 +83,10 @@ async def inlinequery(update: Update, context: CallbackContext) -> None:
                 id=f"{character['id']}_{time.time()}",
                 photo_url=character['img_url'],
                 caption=caption,
-                parse_mode='HTML',
-                reply_markup=buttons
+                parse_mode='HTML'
             )
         )
 
     await update.inline_query.answer(results, next_offset=next_offset, cache_time=5)
 
-async def button_click(update: Update, context: CallbackContext) -> None:
-    query = update.callback_query
-    character_id = int(query.data.split('_')[1])
-
-    # Fetch global grabs for the character
-    global_grabs = await user_collection.count_documents({'characters.id': character_id})
-
-    # Get the top 10 grabbers in the current chat
-    chat_id = query.message.chat_id if query.message else None
-    if chat_id:
-        pipeline = [
-            {"$match": {"characters.id": character_id, "group_id": chat_id}},
-            {"$unwind": "$characters"},
-            {"$match": {"characters.id": character_id}},
-            {"$group": {"_id": "$id", "count": {"$sum": 1}, "name": {"$first": "$first_name"}}},
-            {"$sort": {"count": -1}},
-            {"$limit": 10}
-        ]
-        top_grabbers = await user_collection.aggregate(pipeline).to_list(length=10)
-
-        if top_grabbers:
-            top_grabbers_text = "\n".join([f"{i+1}. <b>{html.escape(grabber['name'])}</b> ➾ <b>{grabber['count']}</b>" for i, grabber in enumerate(top_grabbers)])
-        else:
-            top_grabbers_text = "🔐 Nobody Has Grabbed It Yet In This Chat! Who Will Be The First?"
-
-        # Full caption after clicking the button
-        full_caption = (f"🌸 Name: {query.message.caption.splitlines()[0].split(': ')[1]}\n"
-                        f"🟡 Rarity: {query.message.caption.splitlines()[1].split(': ')[1]}\n"
-                        f"🏖️ Anime: {query.message.caption.splitlines()[2].split(': ')[1]}\n"
-                        f"🆔️ ID: {character_id}\n\n"
-                        f"🌎 Globally Grabbed: {global_grabs} Times\n\n"
-                        f"<b>Top 10 Grabbers In This Chat:</b>\n{top_grabbers_text}")
-
-        await query.edit_message_caption(caption=full_caption, parse_mode='HTML')
-    else:
-        # Handle the situation if chat details cannot be fetched
-        pass
-
-async def ctop(update: Update, context: CallbackContext) -> None:
-    chat_id = update.effective_chat.id
-    chat_name = update.effective_chat.title or 'This Group'
-
-    cursor = group_user_totals_collection.aggregate([
-        {"$match": {"group_id": chat_id}},
-        {"$project": {"username": 1, "first_name": 1, "character_count": "$count"}},
-        {"$sort": {"character_count": -1}},
-        {"$limit": 10}
-    ])
-    leaderboard_data = await cursor.to_list(length=10)
-
-    leaderboard_message = f"<b>ᴛᴏᴘ 10 ɢʀᴀʙʙᴇʀs in {html.escape(chat_name)}</b>\n\n"
-
-    for i, user in enumerate(leaderboard_data, start=1):
-        username = user.get('username', 'Unknown')
-        first_name = html.escape(user.get('first_name', 'Unknown'))
-
-        if len(first_name) > 10:
-            first_name = first_name[:15] + '...'
-        character_count = user['character_count']
-        leaderboard_message += f'{i}. <b>{first_name}</b> ➾ <b>{character_count}</b>\n'
-
-    photo_url = random.choice(PHOTO_URL)
-
-    await update.message.reply_photo(photo=photo_url, caption=leaderboard_message, parse_mode='HTML')
-
-# Register the handlers
 application.add_handler(InlineQueryHandler(inlinequery, block=False))
-application.add_handler(CallbackQueryHandler(button_click, pattern='^grab_', block=False))
-application.add_handler(CommandHandler('ctop', ctop, block=False))
