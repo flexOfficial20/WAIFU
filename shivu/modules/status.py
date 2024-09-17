@@ -107,7 +107,7 @@ async def find_character(client, message):
             f"🪭 𝖭𝖺𝗆𝗲: {html.escape(character['name'])}\n"
             f"⚕️ 𝖱𝖺𝗋𝗂𝗍𝗒: {html.escape(character['rarity'])}\n"
             f"⚜️ 𝖠𝗇𝗂𝗆𝖾: {html.escape(character['anime'])}\n"
-            f"🪅 𝖨𝖣: {html.escape(character['id'])}\n\n"
+            f"🪅 𝖨𝖳: {html.escape(character['id'])}\n\n"
         )
 
         if 'image_url' in character:
@@ -160,10 +160,29 @@ async def send_grabber_status(client, message):
         global_top = await get_global_top(user_id)
 
         progress_bar, progress_percent = await get_progress_bar(total_count, total_waifus_count)
-
         rank = get_rank(progress_percent)
         current_xp = total_count
         next_level_xp = 100  # Adjust as needed
+
+        # Count characters by rarity
+        rarity_counts = {rarity: 0 for rarity in ['⚪ Common', '🟢 Medium', '🟠 Rare', '🟡 Legendary', '💠 Cosmic', '💮 Exclusive', '🔮 Limited Edition']}
+        
+        if user:
+            for character in user.get('characters', []):
+                rarity = character.get('rarity', 'Unknown')
+                if rarity in rarity_counts:
+                    rarity_counts[rarity] += 1
+
+        rarity_message = (
+            f"⚜️ Characters Count Sorted By Rarity\n\n"
+            f"⚪ Common: {rarity_counts['⚪ Common']} characters\n"
+            f"🟢 Medium: {rarity_counts['🟢 Medium']} characters\n"
+            f"🟠 Rare: {rarity_counts['🟠 Rare']} characters\n"
+            f"🟡 Legendary: {rarity_counts['🟡 Legendary']} characters\n"
+            f"💠 Cosmic: {rarity_counts['💠 Cosmic']} characters\n"
+            f"💮 Exclusive: {rarity_counts['💮 Exclusive']} characters\n"
+            f"🔮 Limited Edition: {rarity_counts['🔮 Limited Edition']} characters\n"
+        )
 
         grabber_status = (
             f"╔════════ • ✧ • ════════╗\n"
@@ -192,12 +211,12 @@ async def send_grabber_status(client, message):
         ]
         reply_markup = InlineKeyboardMarkup(keyboard)
 
-        user_photo = await shivuu.download_media(message.from_user.photo.big_file_id)
+        user_photo = random.choice(PHOTO_URL)
 
         await client.send_photo(
             chat_id=message.chat.id,
             photo=user_photo,
-            caption=grabber_status,
+            caption=f"{grabber_status}\n\n{rarity_message}",
             reply_markup=reply_markup
         )
 
@@ -205,62 +224,3 @@ async def send_grabber_status(client, message):
 
     except Exception as e:
         print(f"Error: {e}")
-
-async def rarity_callback(update: Update, context: CallbackContext) -> None:
-    query = update.callback_query
-    await query.answer()
-
-    rarity_users_counts = {}
-    rarities = ['⚪ Common', '🟢 Medium', '🟠 Rare', '🟡 Legendary', '💠 Cosmic', '💮 Exclusive', '🔮 Limited Edition']
-
-    for rarity in rarities:
-        users_with_rarity = await characters_collection.distinct(
-            'user_id', {'rarity': rarity}
-        )
-        rarity_users_counts[rarity] = len(users_with_rarity)
-
-    rarity_message = (
-        f"⚜️ Characters Count Sorted By Rarity\n\n"
-        f"⚪ Common: {rarity_users_counts.get('⚪ Common', 0)} users\n"
-        f"🟢 Medium: {rarity_users_counts.get('🟢 Medium', 0)} users\n"
-        f"🟠 Rare: {rarity_users_counts.get('🟠 Rare', 0)} users\n"
-        f"🟡 Legendary: {rarity_users_counts.get('🟡 Legendary', 0)} users\n"
-        f"💠 Cosmic: {rarity_users_counts.get('💠 Cosmic', 0)} users\n"
-        f"💮 Exclusive: {rarity_users_counts.get('💮 Exclusive', 0)} users\n"
-        f"🔮 Limited Edition: {rarity_users_counts.get('🔮 Limited Edition', 0)} users\n"
-    )
-
-    await query.edit_message_text(rarity_message)
-
-async def ctop(update: Update, context: CallbackContext) -> None:
-    chat_id = update.effective_chat.id
-
-    cursor = group_user_totals_collection.aggregate([
-        {"$match": {"group_id": chat_id}},
-        {"$project": {"username": 1, "first_name": 1, "character_count": "$count"}},
-        {"$sort": {"character_count": -1}},
-        {"$limit": 10}
-    ])
-    leaderboard_data = await cursor.to_list(length=10)
-
-    leaderboard_message = "<b>TOP 10 USERS WHO GUESSED CHARACTERS MOST TIME IN THIS GROUP..</b>\n\n"
-
-    for i, user in enumerate(leaderboard_data, start=1):
-        username = user.get('username', 'Unknown')
-        first_name = html.escape(user.get('first_name', 'Unknown'))
-
-        if len(first_name) > 10:
-            first_name = first_name[:15] + '...'
-        character_count = user['character_count']
-        leaderboard_message += f'{i}. <a href="https://t.me/{username}"><b>{first_name}</b></a> ➾ <b>{character_count}</b>\n'
-
-    photo_url = random.choice(PHOTO_URL)
-
-    await update.message.reply_photo(photo=photo_url, caption=leaderboard_message, parse_mode='HTML')
-
-# Add handlers
-shivuu.add_handler(CommandHandler("status", send_grabber_status))
-shivuu.add_handler(CommandHandler("fmind", find_character))
-shivuu.add_handler(CallbackQueryHandler(rarity_callback, pattern='show_rarity'))
-shivuu.add_handler(CommandHandler("cntop", ctop))
-
