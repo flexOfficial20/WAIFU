@@ -228,4 +228,4 @@ async def send_grabber_status(client, message):
         print(f"Error: {e}")
 
 # Initialize the bot
-shivuu.run()
+
