@@ -5,7 +5,12 @@ import html
 from shivu import shivuu, collection, user_collection, group_user_totals_collection, db
 
 # MongoDB Collections
+groups_collection = db['top_global_groups']
+users_collection = db['user_collection_lmaoooo']
 characters_collection = db['anime_characters_lol']
+
+async def get_user_collection():
+    return await user_collection.find({}).to_list(length=None)
 
 async def get_user_rarity_counts(user_id):
     rarity_counts = {
@@ -29,9 +34,9 @@ async def get_user_rarity_counts(user_id):
     return rarity_counts
 
 async def get_progress_bar(user_waifus_count, total_waifus_count):
-    bar_width = 20  # Width of the progress bar
-    progress = min(user_waifus_count / total_waifus_count, 1)  # Clamp between 0 and 1
-    progress_percent = min(progress * 100, 100)  # Clamp between 0 and 100
+    bar_width = 20  # Define the width of the progress bar
+    progress = min(user_waifus_count / total_waifus_count, 1)  # Ensure it doesn't exceed 100%
+    progress_percent = min(progress * 100, 100)  # Ensure it doesn't exceed 100%
 
     filled_width = int(progress * bar_width)
     empty_width = bar_width - filled_width
@@ -131,7 +136,7 @@ async def find_character(client, message):
 
         response_message = (
             f"🧩 𝖶𝖺𝗂𝖿𝗎 𝖨𝗇𝖿𝗈𝗋𝗆𝖺𝗍𝗂𝗈𝗇:\n\n"
-            f"🪭 𝖭𝖺𝗆𝗲: {html.escape(character['name'])}\n"
+            f"🪭 𝖭𝖺𝗆𝗇𝗍𝗂𝗍𝗇𝗍: {html.escape(character['name'])}\n"
             f"⚕️ 𝖱𝖺𝗋𝗂𝗍𝗒: {html.escape(character['rarity'])}\n"
             f"⚜️ 𝖠𝗇𝗂𝗆𝖾: {html.escape(character['anime'])}\n"
             f"🪅 𝖨𝖳: {html.escape(character['id'])}\n\n"
@@ -192,50 +197,52 @@ async def send_grabber_status(client, message):
         # Fetch user-specific rarity counts
         rarity_counts = await get_user_rarity_counts(user_id)
 
-        # Fix the full_name retrieval
+        # Fetch the user's profile photo
+        profile_photos = client.get_chat_photos(user_id)
+        profile_image = None
+        async for photo in profile_photos:
+            profile_image = photo.file_id
+            break  # Get the first profile photo and break
+
+        # Constructing the user's name from first_name and last_name
         first_name = message.from_user.first_name or ""
         last_name = message.from_user.last_name or ""
-        full_name = f"{first_name} {last_name}".strip()
-
-        profile_image_url = user.get('profile_image_url', None)
+        full_name = f"{first_name} {last_name}".strip()  # Safely combine
 
         rarity_message = (
             f"╔════════ • ✧ • ════════╗\n"
-            f"          ⛩  『𝗨𝘀𝗲𝗿 𝗣𝗿𝗼𝗳𝗶𝗹𝗲』  ⛩\n"
+            f"          ⛩  『𝗨𝘀𝗲𝗿 𝗽𝗿𝗼𝗳𝗶𝗹𝗲』  ⛩\n"
             f"══════════════════════\n"
-            f"➣ ❄️ 𝗡𝗮𝗺𝗲: {full_name}\n"
+            f"➣ ❄️ 𝗡𝗮𝗺𝗲: {message.from_user.full_name}\n"
             f"➣ 🍀 𝗨𝘀𝗲𝗿 𝗜𝗗: {user_id}\n"
             f"━━━━━━━━━━━━━━━━━━━━━━\n"
             f"➣ 👾 𝗖𝗵𝗮𝗿𝗮𝗰𝘁𝗲𝗿𝘀 𝗖𝗼𝗹𝗹𝗲𝗰𝘁𝗲𝗱: {total_count}\n"
             f"━━━━━━━━━━━━━━━━━━━━━━\n"
             f"➣ 🧩 𝗟𝗲𝗀𝗲𝗇𝗱𝗮𝗿𝘆: {rarity_counts['Legendary']}\n"
             f"➣ 🧩 𝗥𝗮𝗿𝗲: {rarity_counts['Rare']}\n"
-            f"➣ 🧩 𝗠𝗲𝗱𝗂𝘂𝗆: {rarity_counts['Medium']}\n"
+            f"➣ 🧩 𝗠𝗲𝗱𝗶𝘂𝗺: {rarity_counts['Medium']}\n"
             f"➣ 🧩 𝗖𝗼𝗺𝗺𝗼𝗻: {rarity_counts['Common']}\n"
             f"➣ 🧩 𝗖𝗼𝘀𝗺𝗶𝗰: {rarity_counts['Cosmic']}\n"
             f"➣ 🧩 𝗘𝘅𝗰𝗹𝘂𝘀𝗂𝘃𝗲: {rarity_counts['Exclusive']}\n"
             f"➣ 🧩 𝗟𝗶𝗺𝗶𝘁𝗲𝗱 𝗘𝗱𝗶𝘁𝗂𝗈𝗇: {rarity_counts['Limited Edition']}\n"
             f"━━━━━━━━━━━━━━━━━━━━━━\n"
-            f"➣ 💠 𝗚𝗿𝗮𝗯𝗯𝗲𝗋 𝗥𝗮𝗻𝗄: {rank}\n"
+            f"➣ 💠 𝗚𝗿𝗮𝗯𝗯𝗲𝗿 𝗥𝗮𝗻𝗸: {rank}\n"
             f"➣ 🔝 𝗖𝗵𝗮𝘁 𝗧𝗼𝗽: {chat_top}\n"
             f"➣ 🔝 𝗚𝗹𝗼𝗯𝗮𝗹 𝗧𝗼𝗽: {global_top}\n"
             f"━━━━━━━━━━━━━━━━━━━━━━\n"
-            f"➣ ⏳ 𝗣𝗿𝗈𝗀𝗋𝗲𝘀𝘀: {progress_bar} {progress_percent:.2f}%\n"
+            f"➣ ⏳ 𝗣𝗿𝗼𝗀𝗋𝗲𝘀𝘀: {progress_bar} {progress_percent:.2f}%\n"
             f"➣ 📊 𝗫𝗽: {current_xp}/{next_level_xp}\n"
             f"╚════════ • ✧ • ════════╝\n"
         )
 
-        if profile_image_url:
+        # Send profile image with message if it exists
+        if profile_image:
             await message.reply_photo(
-                photo=profile_image_url,
+                photo=profile_image,
                 caption=rarity_message
             )
         else:
             await message.reply_text(rarity_message)
 
-        await loading_message.delete()
-
     except Exception as e:
         print(f"Error: {e}")
-
-# Run the bot
