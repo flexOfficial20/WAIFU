@@ -33,9 +33,9 @@ async def get_user_rarity_counts(user_id):
 
     return rarity_counts
 
-async def get_progress_bar(user_waifus_count, total_waifus_count):
+async def get_progress_bar(user_waifus_count, next_level_xp):
     bar_width = 20  # Define the width of the progress bar
-    progress = min(user_waifus_count / total_waifus_count, 1)  # Ensure it doesn't exceed 100%
+    progress = min(user_waifus_count / next_level_xp, 1)  # Ensure it doesn't exceed 100%
     progress_percent = min(progress * 100, 100)  # Ensure it doesn't exceed 100%
 
     filled_width = int(progress * bar_width)
@@ -184,15 +184,15 @@ async def send_grabber_status(client, message):
         else:
             total_count = 0
 
-        total_waifus_count = await user_collection.count_documents({})
+        # Assume next level XP is a fixed number
+        next_level_xp = 500  # Change this value as needed
 
         chat_top = await get_chat_top(message.chat.id, user_id)
         global_top = await get_global_top(user_id)
 
-        progress_bar, progress_percent = await get_progress_bar(total_count, total_waifus_count)
+        progress_bar, progress_percent = await get_progress_bar(total_count, next_level_xp)
         rank = get_rank(progress_percent)
         current_xp = total_count
-        next_level_xp = min(100, total_waifus_count)  # Ensure XP does not exceed total character count
 
         # Fetch user-specific rarity counts
         rarity_counts = await get_user_rarity_counts(user_id)
@@ -243,5 +243,3 @@ async def send_grabber_status(client, message):
         print(f"Error: {e}")
 
 # Run the bot
-# if __name__ == "__main__":
-   # Client("my_bot").run()
