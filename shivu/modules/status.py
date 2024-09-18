@@ -1,4 +1,4 @@
-from pyrogram import filters
+from pyrogram import Client, filters
 from pyrogram.types import InputMediaPhoto
 import asyncio
 import html
@@ -136,10 +136,10 @@ async def find_character(client, message):
 
         response_message = (
             f"🧩 𝖶𝖺𝗂𝖿𝗎 𝖨𝗇𝖿𝗈𝗋𝗆𝖺𝗍𝗂𝗈𝗇:\n\n"
-            f"🪭 𝖭𝖺𝗆𝗂: {html.escape(character['name'])}\n"
+            f"🪭 𝖭𝖺𝗆𝗲: {html.escape(character['name'])}\n"
             f"⚕️ 𝖱𝖺𝗋𝗂𝗍𝗒: {html.escape(character['rarity'])}\n"
             f"⚜️ 𝖠𝗇𝗂𝗆𝖾: {html.escape(character['anime'])}\n"
-            f"🪅 𝖨𝖣: {html.escape(character['id'])}\n\n"
+            f"🪅 𝖨𝖳: {html.escape(character['id'])}\n\n"
         )
 
         if 'image_url' in character:
@@ -150,7 +150,7 @@ async def find_character(client, message):
         else:
             await message.reply_text(response_message)
 
-        user_list_message = "✳️ 𝖧𝖾𝗋𝖾 𝗂𝗌 𝗍𝗁𝖾 𝗅𝗂𝗌𝗍 𝗈𝖿 𝗎𝗌𝖾𝗋𝗌 𝗐𝗁𝗈 𝗁𝖺𝗏𝖾 𝗍𝗁𝗂𝗌 𝖼𝗁𝖺𝗋𝖺𝒸𝗍𝖾𝗋 〽️:\n"
+        user_list_message = "✳️ 𝖧𝖾𝗋𝖾 𝗂𝗌 𝗍𝗁𝖾 𝗅𝗂𝗌𝗍 𝗈𝖿 𝗎𝗌𝖾𝗋𝗌 𝗐𝗁𝗈 𝗁𝖺𝗏𝖾 𝗍𝗁𝾀𝗂𝓈 𝖼𝗁𝖺𝗋𝖺𝒸𝗍𝖾𝗋 〽️:\n"
         user_cursor = characters_collection.find({"id": character['id']})
         user_list = []
         async for user in user_cursor:
@@ -197,8 +197,8 @@ async def send_grabber_status(client, message):
         # Fetch user-specific rarity counts
         rarity_counts = await get_user_rarity_counts(user_id)
 
-        # Fetch the user's profile photo using `shivuu`
-        profile_photos = await shivuu.get_profile_photos(user_id)
+        # Fetch the user's profile photo using `get_chat_photos`
+        profile_photos = await shivuu.get_chat_photos(user_id)
         if profile_photos:
             profile_image = profile_photos.photos[0].file_id  # Get the first profile photo
         else:
@@ -206,27 +206,27 @@ async def send_grabber_status(client, message):
 
         rarity_message = (
             f"╔════════ • ✧ • ════════╗\n"
-            f"          ⛩  『𝗨𝘀𝗲𝗿 𝗣𝗿𝗼𝗳𝗶𝗹𝗲』  ⛩\n"
+            f"          ⛩  『𝗨𝘀𝗲𝗿 𝗽𝗿𝗼𝗳𝗶𝗹𝗲』  ⛩\n"
             f"══════════════════════\n"
             f"➣ ❄️ 𝗡𝗮𝗺𝗲: {message.from_user.full_name}\n"
             f"➣ 🍀 𝗨𝘀𝗲𝗿 𝗜𝗗: {user_id}\n"
             f"━━━━━━━━━━━━━━━━━━━━━━\n"
             f"➣ 👾 𝗖𝗵𝗮𝗿𝗮𝗰𝘁𝗲𝗿𝘀 𝗖𝗼𝗹𝗹𝗲𝗰𝘁𝗲𝗱: {total_count}\n"
             f"━━━━━━━━━━━━━━━━━━━━━━\n"
-            f"➣ 🧩 𝗟𝗲𝗴𝗲𝗻𝗱𝗮𝗿𝘆: {rarity_counts['Legendary']}\n"
+            f"➣ 🧩 𝗟𝗲𝗀𝗲𝗇𝗱𝗮𝗿𝘆: {rarity_counts['Legendary']}\n"
             f"➣ 🧩 𝗥𝗮𝗿𝗲: {rarity_counts['Rare']}\n"
             f"➣ 🧩 𝗠𝗲𝗱𝗶𝘂𝗺: {rarity_counts['Medium']}\n"
             f"➣ 🧩 𝗖𝗼𝗺𝗺𝗼𝗻: {rarity_counts['Common']}\n"
             f"➣ 🧩 𝗖𝗼𝘀𝗺𝗶𝗰: {rarity_counts['Cosmic']}\n"
-            f"➣ 🧩 𝗘𝘅𝗰𝗹𝘂𝘀𝗶𝘃𝗲: {rarity_counts['Exclusive']}\n"
-            f"➣ 🧩 𝗟𝗶𝗺𝗶𝘁𝗲𝗱 𝗘𝗱𝗶𝘁𝗶𝗼𝗻: {rarity_counts['Limited Edition']}\n"
+            f"➣ 🧩 𝗘𝘅𝗰𝗹𝘂𝘀𝗂𝘃𝗲: {rarity_counts['Exclusive']}\n"
+            f"➣ 🧩 𝗟𝗶𝗺𝗶𝘁𝗲𝗱 𝗘𝗱𝗶𝘁𝗂𝗈𝗇: {rarity_counts['Limited Edition']}\n"
             f"━━━━━━━━━━━━━━━━━━━━━━\n"
             f"➣ 💠 𝗚𝗿𝗮𝗯𝗯𝗲𝗿 𝗥𝗮𝗻𝗸: {rank}\n"
             f"➣ 🔝 𝗖𝗵𝗮𝘁 𝗧𝗼𝗽: {chat_top}\n"
             f"➣ 🔝 𝗚𝗹𝗼𝗯𝗮𝗹 𝗧𝗼𝗽: {global_top}\n"
             f"━━━━━━━━━━━━━━━━━━━━━━\n"
-            f"➣ ⏳ 𝗣𝗿𝗼𝗴𝗿𝗲𝘀𝘀: {progress_bar} {progress_percent:.2f}%\n"
-            f"➣ 📊 𝗫𝗣: {current_xp}/{next_level_xp}\n"
+            f"➣ ⏳ 𝗣𝗿𝗼𝗀𝗋𝗲𝘀𝘀: {progress_bar} {progress_percent:.2f}%\n"
+            f"➣ 📊 𝗫𝗽: {current_xp}/{next_level_xp}\n"
             f"╚════════ • ✧ • ════════╝\n"
         )
 
