@@ -1,30 +1,28 @@
 from pyrogram import Client, filters
-from pyrogram.types import InputMediaPhoto
 import asyncio
-import html
 from shivu import shivuu, user_collection, group_user_totals_collection, db
 
 # MongoDB Collections
 characters_collection = db['anime_characters_lol']
 
+# Define the possible rarities to avoid key errors
+RARITIES = [
+    '⚪ Common', '🟢 Medium', '🟠 Rare', '🟡 Legendary',
+    '💠 Cosmic', '💮 Exclusive', '🔮 Limited Edition'
+]
+
 async def get_user_rarity_counts(user_id):
-    rarity_counts = {
-        '⚪ Common': 0,
-        '🟢 Medium': 0,
-        '🟠 Rare': 0,
-        '🟡 Legendary': 0,
-        '💠 Cosmic': 0,
-        '💮 Exclusive': 0,
-        '🔮 Limited Edition': 0
-    }
+    rarity_counts = dict.fromkeys(RARITIES, 0)
 
     user = await user_collection.find_one({'id': user_id})
     if user:
         characters = user.get('characters', [])
         for char in characters:
-            rarity = char.get('rarity', '⚪ Common')
+            rarity = char.get('rarity', '⚪ Common')  # Default to '⚪ Common' if rarity is missing
             if rarity in rarity_counts:
                 rarity_counts[rarity] += 1
+            else:
+                print(f"Unexpected rarity value: {rarity}")
 
     return rarity_counts
 
@@ -41,34 +39,16 @@ async def get_progress_bar(user_waifus_count, total_waifus_count):
 
 def get_rank(progress_percent):
     ranks = [
-        (5, "Bronze I"),
-        (10, "Bronze II"),
-        (15, "Bronze III"),
-        (20, "Silver I"),
-        (25, "Silver II"),
-        (30, "Silver III"),
-        (35, "Gold I"),
-        (40, "Gold II"),
-        (45, "Gold III"),
-        (50, "Gold IV"),
-        (55, "Platinum I"),
-        (60, "Platinum II"),
-        (65, "Platinum III"),
-        (70, "Platinum IV"),
-        (75, "Diamond I"),
-        (80, "Diamond II"),
-        (85, "Diamond III"),
-        (90, "Diamond IV"),
-        (95, "Heroic I"),
-        (100, "Heroic II"),
-        (105, "Heroic III"),
-        (110, "Elite Heroic"),
-        (115, "Master"),
-        (120, "Crown"),
-        (130, "Grandmaster I"),
-        (140, "Grandmaster II"),
-        (150, "Grandmaster III"),
-        (160, "Conqueror")
+        (5, "Bronze I"), (10, "Bronze II"), (15, "Bronze III"),
+        (20, "Silver I"), (25, "Silver II"), (30, "Silver III"),
+        (35, "Gold I"), (40, "Gold II"), (45, "Gold III"),
+        (50, "Gold IV"), (55, "Platinum I"), (60, "Platinum II"),
+        (65, "Platinum III"), (70, "Platinum IV"), (75, "Diamond I"),
+        (80, "Diamond II"), (85, "Diamond III"), (90, "Diamond IV"),
+        (95, "Heroic I"), (100, "Heroic II"), (105, "Heroic III"),
+        (110, "Elite Heroic"), (115, "Master"), (120, "Crown"),
+        (130, "Grandmaster I"), (140, "Grandmaster II"),
+        (150, "Grandmaster III"), (160, "Conqueror")
     ]
 
     for percent, rank in ranks:
@@ -131,10 +111,10 @@ async def find_character(client, message):
 
         response_message = (
             f"🧩 𝖶𝖺𝗂𝖿𝗎 𝖨𝗇𝖿𝗈𝗋𝗆𝖺𝗍𝗂𝗈𝗇:\n\n"
-            f"🪭 𝖭𝖺𝗆𝗲: {html.escape(character['name'])}\n"
-            f"⚕️ 𝖱𝖺𝗋𝗂𝗍𝗒: {html.escape(character['rarity'])}\n"
-            f"⚜️ 𝖠𝗇𝗂𝗆𝖾: {html.escape(character['anime'])}\n"
-            f"🪅 𝖨𝖳: {html.escape(character['id'])}\n\n"
+            f"🪭 𝖭𝖺𝗆𝗲: {character['name']}\n"
+            f"⚕️ 𝖱𝖺𝗋𝗂𝗍𝗒: {character['rarity']}\n"
+            f"⚜️ 𝖠𝗇𝗂𝗆𝖾: {character['anime']}\n"
+            f"🪅 𝖨𝖳: {character['id']}\n\n"
         )
 
         if 'image_url' in character:
@@ -202,10 +182,10 @@ async def send_grabber_status(client, message):
             f"━━━━━━━━━━━━━━━━━━━━━━\n"
             f"➣ 👾 𝗖𝗵𝗮𝗿𝗮𝗰𝘁𝗲𝗿𝘀 𝗖𝗼𝗹𝗹𝗲𝗰𝘁𝗲𝗱: {total_count}\n"
             f"━━━━━━━━━━━━━━━━━━━━━━\n"
-            f"➣ 🧩 𝗟𝗲𝗀𝗲𝗇𝗱𝗮𝗿𝘆: {rarity_counts['🧩 Legendary']}\n"
-            f"➣ 🧩 𝗥𝗮𝗿𝗲: {rarity_counts['🧩 Rare']}\n"
-            f"➣ 🧩 𝗠𝗲𝗱𝗂𝘂𝗆: {rarity_counts['🧩 Medium']}\n"
-            f"➣ 🧩 𝗖𝗼𝗺𝗺𝗼𝗻: {rarity_counts['🧩 Common']}\n"
+            f"➣ 🧩 𝗟𝗲𝗀𝗲𝗇𝗱𝗮𝗿𝘆: {rarity_counts['🟡 Legendary']}\n"
+            f"➣ 🧩 𝗥𝗮𝗿𝗲: {rarity_counts['🟠 Rare']}\n"
+            f"➣ 🧩 𝗠𝗲𝗱𝗂𝘂𝗆: {rarity_counts['🟢 Medium']}\n"
+            f"➣ 🧩 𝗖𝗼𝗺𝗺𝗼𝗻: {rarity_counts['⚪ Common']}\n"
             f"➣ 🧩 𝗖𝗼𝘀𝗺𝗶𝗰: {rarity_counts['💠 Cosmic']}\n"
             f"➣ 🧩 𝗘𝘅𝗰𝗹𝘂𝘀𝗂𝘃𝗲: {rarity_counts['💮 Exclusive']}\n"
             f"➣ 🧩 𝗟𝗶𝗺𝗶𝘁𝗲𝗱 𝗘𝗱𝗶𝘁𝗂𝗈𝗇: {rarity_counts['🔮 Limited Edition']}\n"
