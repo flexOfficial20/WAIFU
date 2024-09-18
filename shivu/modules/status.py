@@ -14,24 +14,25 @@ async def get_user_collection():
 
 async def get_user_rarity_counts(user_id):
     rarity_counts = {
-        "Legendary": 0,
-        "Rare": 0,
-        "Medium": 0,
-        "Common": 0,
-        "Cosmic": 0,
-        "Exclusive": 0,
-        "Limited Edition": 0
+        '⚪ Common': 0,
+        '🟢 Medium': 0,
+        '🟠 Rare': 0,
+        '🟡 Legendary': 0,
+        '💠 Cosmic': 0,
+        '💮 Exclusive': 0,
+        '🔮 Limited Edition': 0
     }
 
     user = await user_collection.find_one({'id': user_id})
     if user:
-        characters = user.get('characters', [])
-        for char in characters:
-            rarity = char.get('rarity', 'Common')
+        user_characters = user.get('characters', [])
+        for char in user_characters:
+            rarity = char.get('rarity')
             if rarity in rarity_counts:
                 rarity_counts[rarity] += 1
 
     return rarity_counts
+
 
 async def get_progress_bar(user_waifus_count, total_waifus_count):
     bar_width = 20  # Define the width of the progress bar
