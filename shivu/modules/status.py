@@ -136,7 +136,7 @@ async def find_character(client, message):
 
         response_message = (
             f"🧩 𝖶𝖺𝗂𝖿𝗎 𝖨𝗇𝖿𝗈𝗋𝗆𝖺𝗍𝗂𝗈𝗇:\n\n"
-            f"🪭 𝖭𝖺𝗆𝗲: {html.escape(character['name'])}\n"
+            f"🪭 𝖭𝖺𝗆𝗇𝗍𝗂𝗍𝗇𝗍: {html.escape(character['name'])}\n"
             f"⚕️ 𝖱𝖺𝗋𝗂𝗍𝗒: {html.escape(character['rarity'])}\n"
             f"⚜️ 𝖠𝗇𝗂𝗆𝖾: {html.escape(character['anime'])}\n"
             f"🪅 𝖨𝖳: {html.escape(character['id'])}\n\n"
@@ -204,36 +204,36 @@ async def send_grabber_status(client, message):
             profile_image = photo.file_id
             break  # Get the first profile photo and break
 
+        # Constructing the user's name from first_name and last_name
+        first_name = message.from_user.first_name or ""
+        last_name = message.from_user.last_name or ""
+        full_name = f"{first_name} {last_name}".strip()  # Safely combine
+
         rarity_message = (
             f"╔════════ • ✧ • ════════╗\n"
             f"          ⛩  『𝗨𝘀𝗲𝗿 𝗣𝗿𝗼𝗳𝗶𝗹𝗲』  ⛩\n"
             f"══════════════════════\n"
-            f"➣ ❄️ 𝗡𝗮𝗺𝗲: {message.from_user.full_name}\n"
+            f"➣ ❄️ 𝗡𝗮𝗺𝗲: {full_name}\n"
             f"➣ 🍀 𝗨𝘀𝗲𝗿 𝗜𝗗: {user_id}\n"
             f"━━━━━━━━━━━━━━━━━━━━━━\n"
-            f"➣ 👾 𝗖𝗵𝗮𝗿𝗮𝗰𝘁𝗲𝗿𝘀: {total_count}\n"
-            f"➣ 🥇 𝗥𝗮𝗿𝗲: {rarity_counts['Rare']}\n"
-            f"➣ 🔱 𝗟𝗲𝗴𝗲𝗻𝗱𝗮𝗿𝘆: {rarity_counts['Legendary']}\n"
-            f"➣ 🔮 𝗟𝗶𝗺𝗶𝘁𝗲𝗱: {rarity_counts['Limited Edition']}\n"
+            f"➣ 👾 𝗖𝗵𝗮𝘁 𝗧𝗼𝗽 𝗥𝗮𝗻𝗸: {chat_top}\n"
+            f"➣ 🏆 𝗚𝗹𝗼𝗯𝗮𝗹 𝗥𝗮𝗻𝗸: {global_top}\n"
             f"━━━━━━━━━━━━━━━━━━━━━━\n"
-            f"➣ 🏅 𝗖𝗵𝗮𝘁 𝗧𝗼𝗽: {chat_top}\n"
-            f"➣ 🏆 𝗚𝗹𝗼𝗯𝗮𝗹 𝗧𝗼𝗽: {global_top}\n"
-            f"━━━━━━━━━━━━━━━━━━━━━━\n"
-            f"➣ 🔮 𝗖𝘂𝗿𝗿𝗲𝗻𝘁 𝗥𝗮𝗻𝗸: {rank}\n"
-            f"➣ 💡 𝗣𝗿𝗼𝗴𝗿𝗲𝘀𝘀: {progress_percent:.2f}% [{progress_bar}]\n"
-            f"➣ ⚔️ 𝗟𝗲𝘃𝗲𝗹: {current_xp}/{next_level_xp}\n"
-            f"╚════════ • ✧ • ════════╝"
+            f"➣ 💠 𝗧𝗼𝘁𝗮𝗹 𝗪𝗮𝗶𝗳𝘂𝘀: {total_count}/{total_waifus_count}\n"
+            f"➣ 📊 𝗥𝗮𝗿𝗶𝘁𝘆 𝗖𝗼𝘂𝗻𝘁𝘀: {rarity_counts}\n"
+            f"➣ ⚔️ 𝗖𝘂𝗿𝗿𝗲𝗻𝘁 𝗥𝗮𝗻𝗸: {rank}\n"
+            f"➣ 🔥 𝗣𝗿𝗼𝗴𝗿𝗲𝘀𝘀: {progress_bar} ({progress_percent:.2f}%)\n"
+            f"╚════════ • ✧ • ════════╝\n"
         )
 
+        # Send profile image with message if it exists
         if profile_image:
-            await client.send_photo(
-                chat_id=message.chat.id,
+            await message.reply_photo(
                 photo=profile_image,
                 caption=rarity_message
             )
         else:
-            await loading_message.edit_text(rarity_message)
+            await message.reply_text(rarity_message)
 
     except Exception as e:
-        print(f"Error fetching grabber status: {e}")
-        await message.reply(f"⚠️ Error: {str(e)}")
+        print(f"Error: {e}")
