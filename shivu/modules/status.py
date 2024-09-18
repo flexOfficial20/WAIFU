@@ -1,4 +1,4 @@
-from pyrogram import Client, filters
+from pyrogram import filters
 from pyrogram.types import InputMediaPhoto
 import asyncio
 import html
@@ -197,8 +197,8 @@ async def send_grabber_status(client, message):
         # Fetch user-specific rarity counts
         rarity_counts = await get_user_rarity_counts(user_id)
 
-        # Fetch the user's profile photo
-        profile_photos = await client.get_profile_photos(user_id)
+        # Fetch the user's profile photo using `shivuu`
+        profile_photos = await shivuu.get_profile_photos(user_id)
         if profile_photos:
             profile_image = profile_photos.photos[0].file_id  # Get the first profile photo
         else:
@@ -240,4 +240,3 @@ async def send_grabber_status(client, message):
 
     except Exception as e:
         print(f"Error: {e}")
-
