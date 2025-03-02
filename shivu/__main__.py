@@ -3,6 +3,8 @@ import re
 import asyncio
 from shivu import application, LOGGER
 from shivu.modules import ALL_MODULES
+
+
 for module_name in ALL_MODULES:
     importlib.import_module("shivu.modules." + module_name)
 
