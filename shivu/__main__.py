@@ -1,7 +1,7 @@
 import importlib
 import re
 import asyncio
-from shivu import application, LOGGER, shivuu 
+from shivu import application, LOGGER, shivuu
 from shivu.modules import ALL_MODULES
 
 
