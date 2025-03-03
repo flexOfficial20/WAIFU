@@ -8,13 +8,13 @@ from shivu import application, sudo_users, collection, db, CHARA_CHANNEL_ID, SUP
 
 IMGBB_API_KEY = '5a5dadd79df17356e7250672f8b1b00b'
 
-WRONG_FORMAT_TEXT = """Wrong ❌️ format...  eg. /upload Img_url muzan-kibutsuji Demon-slayer 3
+"""WRONG_FORMAT_TEXT = """Wrong ❌️ format...  eg. /upload Img_url muzan-kibutsuji Demon-slayer 3
 
 img_url character-name anime-name rarity-number
 
 use rarity number accordingly rarity Map
 
-rarity_map = (⚪ Common=1)  (🟠 Rare=2) (🟡 Legendary=3)(🟢 Medium=4) (💠 Cosmic=5) (💮 Exclusive=6) (🔮 Limited Edition=7)"""
+rarity_map = (⚪ Common=1)  (🟠 Rare=2) (🟡 Legendary=3)(🟢 Medium=4) (💠 Cosmic=5) (💮 Exclusive=6) (🔮 Limited Edition=7)""""""
 
 
 # Function to handle character ID sequence
