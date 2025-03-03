@@ -200,11 +200,11 @@ async def update(update: Update, context: CallbackContext) -> None:
 
 
 # Handlers
-UPLOAD_HANDLER = CommandHandler('upload', upload, block=False)
+UPLOAD_HANDLER = CommandHandler('uupload', upload, block=False)
 application.add_handler(UPLOAD_HANDLER)
 
-DELETE_HANDLER = CommandHandler('delete', delete, block=False)
+DELETE_HANDLER = CommandHandler('ddelete', delete, block=False)
 application.add_handler(DELETE_HANDLER)
 
-UPDATE_HANDLER = CommandHandler('update', update, block=False)
+UPDATE_HANDLER = CommandHandler('uupdate', update, block=False)
 application.add_handler(UPDATE_HANDLER)"""
