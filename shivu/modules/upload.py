@@ -1,4 +1,4 @@
-import urllib.request
+"""import urllib.request
 import requests
 from pymongo import ReturnDocument
 from telegram import Update
@@ -207,4 +207,4 @@ DELETE_HANDLER = CommandHandler('delete', delete, block=False)
 application.add_handler(DELETE_HANDLER)
 
 UPDATE_HANDLER = CommandHandler('update', update, block=False)
-application.add_handler(UPDATE_HANDLER)
+application.add_handler(UPDATE_HANDLER)"""
